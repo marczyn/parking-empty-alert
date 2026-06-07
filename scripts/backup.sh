@@ -17,8 +17,9 @@ cd "$(dirname "$0")/.."
 PROJ=$(pwd)
 
 OUTPUT_DIR="${1:-.}"
+# PID suffix prevents same-second collisions if backup.sh runs in parallel
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-BACKUP_NAME="parking-empty-alert-backup-${TIMESTAMP}.tar.gz"
+BACKUP_NAME="parking-empty-alert-backup-${TIMESTAMP}-$$.tar.gz"
 BACKUP_PATH="${OUTPUT_DIR}/${BACKUP_NAME}"
 
 # Sanity checks
@@ -87,6 +88,10 @@ COUNT=$(tar tzf "$BACKUP_PATH" | wc -l)
 echo "✅ Backup created: $BACKUP_PATH"
 echo "   Size:  $SIZE"
 echo "   Files: $COUNT"
+echo
+echo "⚠️ SECURITY: This archive contains .env with RTSP credentials,"
+echo "   MQTT password, WhatsApp APIKEY, and phone number. Do NOT share."
+echo "   For sharing-safe backup, remove .env before tar (config only)."
 echo
 echo "💡 To restore:"
 echo "   cd /path/to/restore/location"

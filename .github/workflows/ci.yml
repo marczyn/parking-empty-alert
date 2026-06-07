@@ -110,6 +110,7 @@ jobs:
 
   shellcheck:
     name: ShellCheck scripts
+    needs: validate          # skip if YAML invalid
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -133,6 +134,7 @@ jobs:
 
   frigate-config:
     name: Frigate config schema validation
+    needs: validate          # skip if YAML invalid
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

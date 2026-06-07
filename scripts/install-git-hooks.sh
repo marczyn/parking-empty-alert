@@ -43,8 +43,9 @@ if git diff --cached --name-only | grep -q 'config/homeassistant/secrets.yaml$';
   fi
 fi
 
-# Block CallMeBot APIKEY look-alikes (7-digit numbers in committed files)
-LEAKS=$(git diff --cached -U0 | grep -E '^\+.*apikey.*[0-9]{7}' | grep -vE '1234567|123456789' || true)
+# Block CallMeBot APIKEY look-alikes (6-9 digit numbers near 'apikey' string).
+# CallMeBot APIKEY range is 6-9 digits depending on registration era.
+LEAKS=$(git diff --cached -U0 | grep -E '^\+.*apikey.*[0-9]{6,9}' | grep -vE '1234567|123456789' || true)
 if [ -n "$LEAKS" ]; then
   echo "❌ Possible CallMeBot APIKEY leak in staged changes:"
   echo "$LEAKS"

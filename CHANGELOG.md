@@ -12,6 +12,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.18] — 2026-06-07
+
+### Fixed (Round 19 audit — 4 gaps, no regressions)
+
+#### 🟡 Important
+
+- **CI jobs ran in parallel without dependency chain.** Failed validate
+  didn't stop shellcheck or frigate-config — wasted ~5 min of CI time per
+  failure. Added `needs: validate` to both downstream jobs.
+
+- **backup.sh included `.env` (secrets) without warning.** Users sharing
+  backup archives could leak RTSP credentials, MQTT password, WhatsApp
+  APIKEY. Added prominent ⚠️ SECURITY warning in output + instructions
+  for sharing-safe backup.
+
+- **backup.sh filename had only second-precision timestamp** — same-second
+  parallel invocation = collision overwrite. Added `$$` (PID) suffix.
+
+- **Pre-commit hook APIKEY regex was `[0-9]{7}` exact.** CallMeBot APIKEYs
+  are 6-9 digits depending on registration era — narrower exact match
+  missed potential leaks. Widened to `[0-9]{6,9}`.
+
+[1.3.18]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.18
+
 ## [1.3.17] — 2026-06-07
 
 ### Fixed (Round 18 audit — 3 gaps, 1 false positive rejected)
@@ -887,7 +911,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.17...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.18...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0
