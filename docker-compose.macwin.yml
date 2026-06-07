@@ -1,0 +1,19 @@
+###############################################################################
+# Docker Compose override for macOS and Windows (Docker Desktop)
+#
+# Docker Desktop does not support `network_mode: host` properly.
+# This override switches HA to bridge networking with explicit port mapping.
+#
+# Use:
+#   docker compose -f docker-compose.yml -f docker-compose.macwin.yml up -d
+#
+# Note: Home Assistant Companion mobile app discovery may not work automatically.
+# Connect manually with http://<your-mac-IP>:8123
+###############################################################################
+
+services:
+  homeassistant:
+    network_mode: bridge        # override host mode
+    ports:
+      - "8123:8123"             # HA web UI
+    privileged: false           # not needed in bridge mode

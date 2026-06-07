@@ -8,6 +8,10 @@
 #   2. docker compose up -d
 #   3. Open Frigate UI:  http://<host>:5000
 #   4. Open HA UI:        http://<host>:8123
+#
+# Docker Desktop (macOS/Windows) note:
+# `network_mode: host` for Home Assistant only works on Linux.
+# On macOS/Windows, use docker-compose.macwin.yml override (see docs/INSTALLATION.md).
 ###############################################################################
 
 services:
@@ -25,6 +29,13 @@ services:
       - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
       - mosquitto-log:/mosquitto/log
+    healthcheck:
+      # mosquitto_pub returns 0 on success, non-zero on connection failure
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t healthcheck -m ok -q 0 -u ${MQTT_USER} -P ${MQTT_PASSWORD} 2>&1 | grep -qE '^$$' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # ─────────────────────────────────────────────────────────────
   # Frigate — NVR + AI object detection
@@ -34,7 +45,8 @@ services:
     container_name: frigate
     restart: always
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
     shm_size: 256mb          # increase to 512mb if >1 camera
     # Uncomment if you have Coral USB TPU:
     # devices:
@@ -62,6 +74,7 @@ services:
       - "8554:8554"          # RTSP restream (optional)
       - "8555:8555/tcp"      # WebRTC TCP
       - "8555:8555/udp"      # WebRTC UDP
+    # Frigate's built-in healthcheck is already in the image (HTTP /api/version)
 
   # ─────────────────────────────────────────────────────────────
   # Home Assistant — automations + push notifications
@@ -71,15 +84,25 @@ services:
     container_name: homeassistant
     restart: always
     depends_on:
-      - mosquitto
-      - frigate
-    network_mode: host         # needed for discovery + Companion App
+      mosquitto:
+        condition: service_healthy
+      frigate:
+        condition: service_started
+    # network_mode: host works on Linux. macOS/Windows: use override file
+    # `docker compose -f docker-compose.yml -f docker-compose.macwin.yml up -d`
+    network_mode: host
     privileged: true
     environment:
       TZ: "Europe/Warsaw"
     volumes:
       - ./config/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8123 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s   # HA needs ~60s to fully boot
 
 volumes:
   mosquitto-data:

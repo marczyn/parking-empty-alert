@@ -1,0 +1,123 @@
+###############################################################################
+# Home Assistant Lovelace Dashboard — Parking Empty Alert
+#
+# To enable: in configuration.yaml change `lovelace:` to:
+#   lovelace:
+#     mode: yaml
+#     resources: []
+#
+# Then restart HA. This file becomes the main dashboard.
+# (Storage-mode users: import via Settings → Dashboards → Add → Take Control)
+###############################################################################
+
+title: Parking Monitor
+views:
+
+  - title: Overview
+    path: overview
+    icon: mdi:car-parking-lights
+    cards:
+
+      # ─── Hero status card ───
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ## 🅿️ Parking Status
+
+          - type: glance
+            title: ""
+            columns: 1
+            entities:
+              - entity: sensor.parking_parking_spot_car
+                name: Cars in spot
+                icon: mdi:car
+
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_parking_spot_car
+                state: "0"
+            card:
+              type: markdown
+              content: |
+                ### ✅ Spot is FREE
+                You can park now.
+
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_parking_spot_car
+                state_not: "0"
+            card:
+              type: markdown
+              content: |
+                ### 🚫 Spot is OCCUPIED
+                Wait for someone to leave.
+
+      # ─── Live camera ───
+      - type: picture-entity
+        entity: camera.parking
+        camera_view: live
+        show_state: false
+        show_name: true
+        name: Live camera
+
+      # ─── Last detection snapshot ───
+      - type: picture-entity
+        entity: image.parking_parking_spot
+        show_state: false
+        show_name: true
+        name: Last zone snapshot
+
+      # ─── Detection details ───
+      - type: entities
+        title: Detection details
+        entities:
+          - entity: binary_sensor.parking_motion
+            name: Motion in frame
+          - entity: binary_sensor.parking_car_occupied
+            name: Car in frame (anywhere)
+          - entity: binary_sensor.parking_person_occupied
+            name: Person in frame
+          - entity: switch.parking_detect
+            name: Detection enabled
+          - entity: switch.parking_recordings
+            name: Recordings enabled
+
+      # ─── History plot ───
+      - type: history-graph
+        title: Last 24h occupancy
+        hours_to_show: 24
+        entities:
+          - sensor.parking_parking_spot_car
+
+  - title: Events
+    path: events
+    icon: mdi:history
+    cards:
+      - type: logbook
+        title: Recent state changes
+        hours_to_show: 24
+        entities:
+          - sensor.parking_parking_spot_car
+          - binary_sensor.parking_motion
+          - binary_sensor.parking_car_occupied
+      - type: iframe
+        title: Frigate Events
+        url: http://frigate:5000/events
+        aspect_ratio: 75%
+
+  - title: Diagnostics
+    path: diagnostics
+    icon: mdi:chart-line
+    cards:
+      - type: entities
+        title: System status
+        entities:
+          - entity: automation.parking_spot_empty_whatsapp
+            name: Empty-spot alert automation
+          - entity: automation.frigate_offline_watchdog
+            name: Frigate offline watchdog
+      - type: iframe
+        title: Frigate UI
+        url: http://frigate:5000
+        aspect_ratio: 75%

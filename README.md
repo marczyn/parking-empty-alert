@@ -6,6 +6,8 @@
 [![Docker](https://img.shields.io/badge/Docker-required-2496ED?logo=docker&logoColor=white)](https://docker.com)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-via_CallMeBot-25D366?logo=whatsapp&logoColor=white)](https://www.callmebot.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
+[![CI](https://github.com/marczyn/parking-empty-alert/actions/workflows/ci.yml/badge.svg)](https://github.com/marczyn/parking-empty-alert/actions/workflows/ci.yml)
 
 **What it does:** sends a **WhatsApp** message **when a parking spot becomes EMPTY** (car drove away).
 
@@ -30,6 +32,37 @@
 ---
 
 ## 📺 How it looks
+
+### 🎬 Demo
+
+```
+1. Car drives into parking spot (08:00)
+   └─ Frigate: car detected, persistent tracking starts
+   └─ HA: sensor.parking_parking_spot_car = 1
+   └─ (No notification — spot is occupied, as expected)
+
+2. Car stays parked for 9 hours
+   └─ Frigate: stationary tracking, car still detected
+   └─ HA: sensor.parking_parking_spot_car = 1 (stable)
+
+3. Driver leaves with car (17:30)
+   └─ Frigate: car exited zone within 5 seconds
+   └─ HA: sensor.parking_parking_spot_car = 0
+   └─ HA automation: waiting 2 min for anti-blink filter
+
+4. After 2 minutes of empty (17:32)
+   └─ HA: sends notify.whatsapp_parking
+   └─ CallMeBot → WhatsApp servers → your phone
+
+5. WhatsApp arrives on phone (17:32:03)
+   ╭───────────────────────────────────────╮
+   │ 🅿️ Parking spot FREE!                  │
+   │ You can park — became free 2 min ago. │
+   │ Time: 17:32                            │
+   ╰───────────────────────────────────────╯
+```
+
+> 📹 **Live demo of Frigate UI:** https://demo.frigate.video (no install required, runs in browser)
 
 ### Architecture
 
@@ -170,6 +203,20 @@ Frigate auto-discovers the camera and creates in HA:
 - Reolink camera (any model: RLC/Duo/TrackMix/Argus/E1/NVR)
 - 1 GB free RAM, 30 GB free disk (for 7-day recording retention)
 - WhatsApp on phone + APIKEY from CallMeBot (instructions below)
+
+### Hardware recommendations
+
+If you don't have a Docker host yet, here are tested combinations (prices Q2 2026):
+
+| Tier | Hardware | Price | Why |
+|---|---|---|---|
+| **🥇 Best ROI** | Beelink S12 Pro (Intel N100, 8GB RAM, 256GB SSD) | ~$180 | Quad-core Intel, runs 24/7 at ~7W, more than enough for 1-3 cameras with CPU-only detection |
+| **🥈 Energy efficient** | Raspberry Pi 5 (8GB) + 64GB SD + case + PSU | ~$130 | 4-5W idle, perfect for 1 camera, may need Coral USB for >1 cam |
+| **🥉 Repurpose old hardware** | Old laptop / desktop you already own | $0 | Works if it has 4GB RAM + 30GB disk; will use more power (~30-60W) |
+| **💪 Pro setup** | Intel NUC 13 (i3, 16GB RAM, 500GB SSD) + Coral USB TPU | ~$450 | 5+ cameras, low power, low CPU overhead |
+| **🏠 Already have NAS** | Synology DS920+/DS1522+ or UnRAID | $0 (use existing) | Run as Docker container — see [User Guide §10](docs/USER_GUIDE.md#10-multi-camera-setup) |
+
+For **1 camera setup**, the cheapest option (Raspberry Pi 5 or old laptop) is fully sufficient.
 
 ---
 

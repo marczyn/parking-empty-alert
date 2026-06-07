@@ -45,3 +45,48 @@
 #         message: >
 #           🚗 A car parked in the spot.
 #           Time: {{ now().strftime('%H:%M') }}
+
+###############################################################################
+# WATCHDOG: ⚠️ Frigate offline detection
+#
+# If Frigate's motion sensor becomes "unavailable" for >10 minutes,
+# the AI pipeline is broken — send WhatsApp so the user knows to investigate.
+###############################################################################
+- id: frigate_offline_watchdog
+  alias: "⚠️ Frigate offline watchdog"
+  description: "Alert if Frigate stops reporting state >10 min"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.parking_motion
+      to: "unavailable"
+      for:
+        minutes: 10
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ⚠️ Frigate offline >10 min!
+          AI detection stopped. Check Docker host.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}
+
+###############################################################################
+# WATCHDOG: ✅ Frigate recovered
+###############################################################################
+- id: frigate_recovered_watchdog
+  alias: "✅ Frigate recovered"
+  description: "Notify when Frigate comes back after being offline"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.parking_motion
+      from: "unavailable"
+      for:
+        minutes: 1
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ✅ Frigate back online.
+          AI detection resumed.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}
