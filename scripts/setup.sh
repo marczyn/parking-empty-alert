@@ -29,6 +29,24 @@ if [ -d .git ] && [ ! -x .git/hooks/pre-commit ]; then
   bash scripts/install-git-hooks.sh 2>/dev/null || true
 fi
 
+# Validate hwaccel coupling — frigate.yml hwaccel_args without compose devices = fail
+if grep -qE '^[[:space:]]*hwaccel_args:[[:space:]]*preset-vaapi' config/frigate.yml 2>/dev/null; then
+  if ! grep -qE '^[[:space:]]*-[[:space:]]*/dev/dri:/dev/dri' docker-compose.yml; then
+    echo "⚠ frigate.yml has 'hwaccel_args: preset-vaapi' but docker-compose.yml"
+    echo "  doesn't expose /dev/dri. Frigate will fail to start."
+    echo "  Uncomment the 'devices: [/dev/dri:/dev/dri]' block in docker-compose.yml"
+    echo "  OR comment hwaccel_args in frigate.yml."
+    echo
+  fi
+fi
+if grep -qE '^[[:space:]]*hwaccel_args:[[:space:]]*preset-nvidia' config/frigate.yml 2>/dev/null; then
+  if ! grep -qE 'driver:[[:space:]]*nvidia' docker-compose.yml; then
+    echo "⚠ frigate.yml has 'hwaccel_args: preset-nvidia' but docker-compose.yml"
+    echo "  doesn't reserve NVIDIA devices. Frigate will fail to start."
+    echo
+  fi
+fi
+
 # Reject placeholder values from .env.example — they always indicate the user
 # forgot to edit .env before running setup.sh.
 # Check each suspicious key separately for robust pattern matching.
@@ -156,6 +174,12 @@ EOF
 
   # Substitute CAMERA_IP in frigate.yml
   sed -i.bak "s/CAMERA_IP_PLACEHOLDER/$CAMERA_IP/g" config/frigate.yml
+  rm -f config/frigate.yml.bak
+
+  # Make Frigate MQTT client_id unique to prevent collisions if user runs
+  # multiple Frigate instances pointing at same broker
+  CLIENT_ID="frigate-$(hostname -s 2>/dev/null || echo $RANDOM)"
+  sed -i.bak "s/^  client_id: frigate$/  client_id: $CLIENT_ID/" config/frigate.yml
   rm -f config/frigate.yml.bak
 
   # Substitute DOCKER_HOST_IP in HA Lovelace dashboard + all example dashboards

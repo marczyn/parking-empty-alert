@@ -12,6 +12,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.10] — 2026-06-07
+
+### Fixed (Round 10 code audit — 5 more gaps)
+
+#### 🔴 Critical
+
+- **Hardware acceleration coupling not enforced.** Users uncommenting
+  `hwaccel_args: preset-vaapi` in `frigate.yml` without uncommenting
+  `devices: [/dev/dri:/dev/dri]` in `docker-compose.yml` → Frigate failed at
+  startup with cryptic "vaapi device not found" error. Added validation in
+  `setup.sh` that detects mismatched hwaccel config + missing device passthrough
+  for both VAAPI and NVIDIA presets.
+
+- **MQTT `client_id: frigate` collision risk.** If user runs multiple Frigate
+  instances against same broker, Mosquitto kicks duplicate client_ids → both
+  Frigates flap. Setup.sh now substitutes hostname into client_id
+  (`frigate-${hostname}`) — unique per host automatically.
+
+#### 🟡 Important
+
+- **HA recorder still recorded chatty entities.** v1.3.6/v1.3.7 only excluded
+  parking_* entities; person/zone/sun/weather/automation events still grew DB.
+  Extended exclude list with `sun`, `weather`, `automation`, `script` domains
+  + service_executed/service_registered event types + 5 more Frigate FPS
+  metric patterns.
+
+- **CI frigate-config matrix pulled image 4×** (~8GB bandwidth + slow parallel
+  jobs). Switched to single job with for-loop over 4 configs against one
+  shared Frigate image pull. 4× faster + 4× less bandwidth.
+
+#### 🟢 Polish
+
+- (Documented gaps for future: Mosquitto persistence corruption potential,
+  Lovelace grid columns not mobile-responsive, 3rd-party link rot risk —
+  all low-priority, noted but not fixed)
+
+[1.3.10]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.10
+
 ## [1.3.9] — 2026-06-07
 
 ### Fixed (Round 9 code audit — 7 more gaps)
@@ -612,7 +650,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.9...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.10...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

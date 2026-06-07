@@ -16,6 +16,8 @@ mqtt:
   user: "{FRIGATE_MQTT_USER}"
   password: "{FRIGATE_MQTT_PASSWORD}"
   topic_prefix: frigate
+  # client_id is substituted to '<hostname>' by setup.sh to prevent collisions
+  # if multiple Frigate instances point at same MQTT broker
   client_id: frigate
 
 # Object detector — CPU default (works everywhere)

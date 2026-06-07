@@ -25,7 +25,11 @@ recorder:
   commit_interval: 5           # batch DB writes (default = 1; less I/O)
   exclude:
     domains:
-      - update                 # don't record firmware update entities
+      - update                 # firmware update entities (rarely change)
+      - sun                    # sun.sun position updates every minute
+      - weather                # weather entity changes frequently
+      - automation             # automation last_triggered already in logbook
+      - script                 # script last_triggered already in logbook
     # Note: '*' in entity_globs is glob, NOT regex. It matches any chars
     # including underscore. So 'parking*motion' matches 'parking_motion'
     # AND 'parking_lot_motion' AND 'parking_lot_spot_1_motion'.
@@ -34,8 +38,14 @@ recorder:
       - binary_sensor.parking*motion_*   # sub-events (audio, person, etc.)
       - sensor.parking*active_objects    # high-frequency object counts
       - sensor.parking*fps               # Frigate FPS metrics
+      - sensor.parking*detection_fps     # detection rate metrics
+      - sensor.parking*process_fps       # processing rate metrics
+      - sensor.parking*skipped_fps       # skipped frame counts
+      - sensor.parking*camera_fps        # camera FPS metrics
     event_types:
       - call_service           # noisy
+      - service_executed
+      - service_registered
 
 # ─────────────────────────────────────────────────────────────
 # HTTP / reverse proxy support

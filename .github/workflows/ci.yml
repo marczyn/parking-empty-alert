@@ -125,24 +125,25 @@ jobs:
   frigate-config:
     name: Frigate config schema validation
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        # Test base config + example configs against frigate stable
-        config:
-          - config/frigate.yml
-          - examples/multi-camera/frigate.yml
-          - examples/multi-spot-single-camera/frigate.yml
-          - examples/lpr/frigate.lpr.yml
     steps:
       - uses: actions/checkout@v4
-      - name: Validate ${{ matrix.config }} schema
+      - name: Pull Frigate image (single shared pull)
+        run: docker pull ghcr.io/blakeblackshear/frigate:stable
+      - name: Validate all Frigate configs against stable image
+        # Single job validates all 4 configs against ONE shared image pull
+        # (matrix strategy previously pulled the ~2GB image 4 times in parallel).
         run: |
-          docker pull ghcr.io/blakeblackshear/frigate:stable
-          docker run --rm \
-            -v "$PWD/${{ matrix.config }}:/config/config.yml:ro" \
-            --entrypoint python3 \
-            ghcr.io/blakeblackshear/frigate:stable \
-            -c "
+          set -e
+          for CFG in config/frigate.yml \
+                     examples/multi-camera/frigate.yml \
+                     examples/multi-spot-single-camera/frigate.yml \
+                     examples/lpr/frigate.lpr.yml; do
+            echo "─── Validating $CFG ───"
+            docker run --rm \
+              -v "$PWD/$CFG:/config/config.yml:ro" \
+              --entrypoint python3 \
+              ghcr.io/blakeblackshear/frigate:stable \
+              -c "
           import yaml
           c = yaml.safe_load(open('/config/config.yml'))
           assert 'mqtt' in c, 'missing mqtt'
@@ -152,5 +153,7 @@ jobs:
               assert 'ffmpeg' in cam, f'camera {name}: missing ffmpeg'
               assert 'zones' in cam, f'camera {name}: missing zones'
               assert any('detect' in inp.get('roles',[]) for inp in cam['ffmpeg']['inputs']), f'camera {name}: no detect role'
-          print('✓ ${{ matrix.config }} schema OK')
-          "
+          print(f'✓ {sys.argv[0]} OK')
+          " || { echo "✗ $CFG FAILED"; exit 1; }
+          done
+          echo "✓ All Frigate configs valid"
