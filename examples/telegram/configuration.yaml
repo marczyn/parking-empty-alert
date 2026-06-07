@@ -1,0 +1,17 @@
+# ─────────────────────────────────────────────────────────────
+# Telegram notification setup
+# Append this snippet to config/homeassistant/configuration.yaml
+# Requires telegram_bot_token + telegram_chat_id in secrets.yaml
+# ─────────────────────────────────────────────────────────────
+telegram_bot:
+  - platform: polling
+    api_key: !secret telegram_bot_token
+    allowed_chat_ids:
+      - !secret telegram_chat_id
+
+notify:
+  # NOTE: this is a 2nd notify entry — keep your existing 'whatsapp_parking'
+  # entry if you want BOTH notification methods active.
+  - name: telegram_parking
+    platform: telegram
+    chat_id: !secret telegram_chat_id

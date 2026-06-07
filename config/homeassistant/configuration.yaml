@@ -1,0 +1,121 @@
+###############################################################################
+# Home Assistant — minimal config for parking detection
+# Frigate will automatically appear as an integration after HA starts
+###############################################################################
+
+default_config:
+
+# ─────────────────────────────────────────────────────────────
+# Activate YAML-mode Lovelace dashboards.
+# Without this, HA uses 'storage mode' (UI-driven), and our shipped
+# ui-lovelace.yaml is IGNORED.
+# ─────────────────────────────────────────────────────────────
+lovelace:
+  mode: yaml
+  resources: []
+
+# ─────────────────────────────────────────────────────────────
+# Recorder — limit database growth.
+# Frigate motion sensors update every few seconds. By default HA records
+# ALL state changes → DB balloons to GB in days. These rules keep only
+# what's needed for dashboards + automations.
+# ─────────────────────────────────────────────────────────────
+recorder:
+  purge_keep_days: 14         # keep history for 14 days (default = 10)
+  commit_interval: 5           # batch DB writes (default = 1; less I/O)
+  exclude:
+    domains:
+      - update                 # firmware update entities (rarely change)
+      - sun                    # sun.sun position updates every minute
+      - weather                # weather entity changes frequently
+      - automation             # automation last_triggered already in logbook
+      - script                 # script last_triggered already in logbook
+    # Note: '*' in entity_globs is glob, NOT regex. It matches any chars
+    # including underscore. So 'parking*motion' matches 'parking_motion'
+    # AND 'parking_lot_motion' AND 'parking_lot_spot_1_motion'.
+    entity_globs:
+      - binary_sensor.parking*motion     # all parking-camera motion sensors
+      - binary_sensor.parking*motion_*   # sub-events (audio, person, etc.)
+      - sensor.parking*active_objects    # high-frequency object counts
+      - sensor.parking*fps               # Frigate FPS metrics
+      - sensor.parking*detection_fps     # detection rate metrics
+      - sensor.parking*process_fps       # processing rate metrics
+      - sensor.parking*skipped_fps       # skipped frame counts
+      - sensor.parking*camera_fps        # camera FPS metrics
+    event_types:
+      - call_service           # noisy
+      - service_executed
+      - service_registered
+
+# ─────────────────────────────────────────────────────────────
+# HTTP / reverse proxy support
+# Uncomment and edit if HA is behind a reverse proxy (NPM, Traefik, SWAG, etc.).
+# Without this, HA rejects requests with 'WrongHostError'.
+# ─────────────────────────────────────────────────────────────
+# http:
+#   use_x_forwarded_for: true
+#   trusted_proxies:
+#     # Narrow to your reverse proxy's actual IP, NOT broad RFC1918 ranges!
+#     # Examples (uncomment ONE that matches your reverse proxy):
+#     # - 172.18.0.0/16        # specific Docker bridge subnet (use `docker network inspect`)
+#     # - 192.168.1.10/32      # specific reverse proxy host
+#     # - 127.0.0.1            # localhost-only proxy
+#     #
+#     # ⚠️ AVOID broad ranges like 192.168.0.0/16 — they trust your entire LAN
+#     # to forge X-Forwarded-For headers, which defeats HA's IP-based auth!
+#   # If exposed to internet, also set:
+#   # ip_ban_enabled: true
+#   # login_attempts_threshold: 5
+
+# ─────────────────────────────────────────────────────────────
+# MQTT broker connection
+#
+# ⚠️ NOTE: HA 2024.10+ deprecated YAML mqtt config in favor of UI setup.
+# This block still works through HA 2026.x but logs a deprecation warning.
+#
+# RECOMMENDED for new installs: remove this block and configure MQTT via
+# Settings → Devices & Services → Add Integration → MQTT
+# - Broker: mosquitto
+# - Port: 1883
+# - Username: frigate
+# - Password: (from secrets.yaml or .env MQTT_PASSWORD)
+#
+# Kept as YAML here for zero-touch setup via setup.sh.
+# ─────────────────────────────────────────────────────────────
+mqtt:
+  broker: mosquitto
+  port: 1883
+  username: !secret mqtt_user
+  password: !secret mqtt_password
+
+# ─────────────────────────────────────────────────────────────
+# WhatsApp via CallMeBot — free service, zero registration
+# Setup (5 min — see README, section "Step 2 — WhatsApp APIKEY"):
+#   1. Add +34 644 11 11 11 to phone contacts
+#   2. Send WhatsApp message: "I allow callmebot to send me messages"
+#   3. Response: "API Activated for your phone number. Your APIKEY is XXXXX"
+#   4. Put phone number + apikey in secrets.yaml (or via setup.sh)
+#
+# CallMeBot rate limit: 1 message per minute per phone number.
+#
+# notify.rest with method: GET sends all `data` fields as query parameters,
+# plus the message via `message_param_name`. Result URL:
+#   GET https://api.callmebot.com/whatsapp.php?phone=X&apikey=Y&text=Z
+# ─────────────────────────────────────────────────────────────
+notify:
+  - name: whatsapp_parking
+    platform: rest
+    resource: "https://api.callmebot.com/whatsapp.php"
+    method: GET
+    message_param_name: text
+    data:
+      phone: !secret whatsapp_phone
+      apikey: !secret whatsapp_apikey
+    verify_ssl: true
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+logger:
+  default: info

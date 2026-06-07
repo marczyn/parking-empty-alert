@@ -1,0 +1,119 @@
+###############################################################################
+# Multi-camera automations — alert per zone
+###############################################################################
+
+# ─── PARKING A: spot #1 ───
+- id: parking_a_free
+  alias: "🅿️ Spot A → free"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_a_spot_a_car
+      below: 1
+      for: {minutes: 2}
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🅿️ Spot A FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── PARKING B: spot #2 ───
+- id: parking_b_free
+  alias: "🅿️ Spot B → free"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_b_spot_b_car
+      below: 1
+      for: {minutes: 2}
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🅿️ Spot B FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── GARAGE ───
+- id: garage_free
+  alias: "🚗 Garage → free"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.garage_garage_spot_car
+      below: 1
+      for: {minutes: 2}
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🚗 Garage FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── BONUS: hourly "how many spots free now" summary ───
+#
+# ⚠️ CallMeBot rate limit is 1 WhatsApp message per minute per phone.
+# Hourly summary + per-spot alerts can collide:
+#   - 3 cars leave within 1 min → 3 alerts + summary = 4 messages
+#   - CallMeBot drops messages 2-4 silently
+#
+# Mitigations:
+#   - Comment out parking_summary_hourly if you also want per-spot alerts
+#   - Or use HA Companion App push instead (no rate limit)
+#   - Or use Telegram (no rate limit, see USER_GUIDE.md Section 9)
+- id: parking_summary_hourly
+  alias: "📊 Hourly parking summary"
+  trigger:
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          📊 Parking summary {{ now().strftime('%H:%M') }}
+          A: {{ states('sensor.parking_a_spot_a_car') }}
+          B: {{ states('sensor.parking_b_spot_b_car') }}
+          Garage: {{ states('sensor.garage_garage_spot_car') }}
+
+###############################################################################
+# WATCHDOG: Frigate offline detection (one watchdog covers all 3 cameras)
+###############################################################################
+- id: frigate_offline_watchdog
+  alias: "⚠️ Frigate offline watchdog"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.parking_a_motion
+      to: "unavailable"
+      for: {minutes: 10}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ⚠️ Frigate offline >10 min! Multi-camera AI detection stopped.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}
+
+- id: frigate_recovered_watchdog
+  alias: "✅ Frigate recovered"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.parking_a_motion
+      from: "unavailable"
+      for: {minutes: 1}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ✅ Frigate back online.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}

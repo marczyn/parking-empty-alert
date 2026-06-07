@@ -1,0 +1,38 @@
+name: Cleanup old package versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: 'Number of latest versions to keep per package'
+        required: true
+        default: '2'
+  workflow_run:
+    workflows: ["Build and push all-in-one Docker images"]
+    types: [completed]
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup-full:
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - name: Delete old parking-empty-alert (full) versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'parking-empty-alert'
+          package-type: 'container'
+          min-versions-to-keep: ${{ github.event.inputs.keep || '2' }}
+          delete-only-untagged-versions: 'false'
+
+  cleanup-lite:
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - name: Delete old parking-empty-alert-lite versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: 'parking-empty-alert-lite'
+          package-type: 'container'
+          min-versions-to-keep: ${{ github.event.inputs.keep || '2' }}
+          delete-only-untagged-versions: 'false'

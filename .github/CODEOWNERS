@@ -1,0 +1,21 @@
+# CODEOWNERS — auto-assigns reviewers for pull requests.
+# Format: <pattern>  <@username>
+
+# Default owner for everything
+*  @marczyn
+
+# Documentation
+*.md             @marczyn
+docs/            @marczyn
+
+# CI / build
+.github/         @marczyn
+
+# Core stack
+docker-compose*.yml  @marczyn
+config/          @marczyn
+scripts/         @marczyn
+
+# Camera templates — anyone contributing a new vendor template
+# should be added here when they merge their first PR
+examples/cameras/  @marczyn
