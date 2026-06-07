@@ -12,6 +12,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.17] — 2026-06-07
+
+### Fixed (Round 18 audit — 3 gaps, 1 false positive rejected)
+
+#### 🟡 Important
+
+- **RTSP test in setup.sh had no timeout.** If camera responded TCP but
+  hung on RTSP handshake (firewalled, busy, broken firmware), setup.sh
+  blocked indefinitely. Added 30s `timeout` wrapper.
+
+- **docker-compose.macwin.yml override missing depends_on chain.** Some
+  Compose versions drop the dep declarations from base when override is
+  applied — could let HA start before Mosquitto ready. Explicit re-stated
+  in override for safety.
+
+- **secrets.yaml unconditional overwrite destroyed manual edits.** v1.3.13
+  fix made setup.sh ALWAYS re-sync from .env — overwrote user customizations
+  to telegram_token, pushover_user_key, etc. Now setup.sh detects manual
+  edits via marker comment + prompts before overwriting.
+
+### Investigated, not a real gap
+
+- **`max_frames: 0` (forever) tracking** flagged as potential memory leak,
+  but verified Frigate drops untracked objects after `max_disappeared` frames
+  → 1 parked car = 1 stable object → constant memory. Confirmed safe for 30+
+  day continuous parking. Comment expanded to explain.
+
+[1.3.17]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.17
+
 ## [1.3.16] — 2026-06-07
 
 ### Fixed (Round 17 audit — 5 gaps, no regressions)
@@ -858,7 +887,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.16...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.17...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

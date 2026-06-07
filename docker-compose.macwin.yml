@@ -17,3 +17,10 @@ services:
     ports:
       - "8123:8123"             # HA web UI
     privileged: false           # not needed in bridge mode
+    # Preserve depends_on from base compose — compose merges, but explicit is safer.
+    # Without re-stating, some compose versions drop the dep chain on override.
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      frigate:
+        condition: service_started
