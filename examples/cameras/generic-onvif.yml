@@ -1,0 +1,67 @@
+###############################################################################
+# Frigate camera template — Generic ONVIF
+#
+# Use this template for:
+#   - Foscam, Wyze (with RTSP firmware), Eufy, Anpviz, Empire Tech, Sumpple
+#   - Axis cameras (M-series, P-series, Q-series)
+#   - TP-Link Vigi
+#   - No-name / OEM Chinese cameras (Aliexpress, generic ONVIF-compliant)
+#   - Anything where you don't know the exact URL pattern
+#
+# Step 1 — Discover the RTSP URL with ONVIF Device Manager:
+#
+#   docker run --rm -it --network host \
+#     ghcr.io/azanto/onvif-tool discovery
+#
+# Or use a Windows tool: ONVIF Device Manager (free, https://sourceforge.net/projects/onvifdm/)
+#
+# Step 2 — From the discovered profile, copy the RTSP URL.
+#
+# Common patterns you may see:
+#
+#   Foscam:    rtsp://USER:PASS@IP:88/videoMain
+#   Foscam:    rtsp://USER:PASS@IP:88/videoSub
+#   Axis:      rtsp://USER:PASS@IP/axis-media/media.amp
+#   Axis:      rtsp://USER:PASS@IP/axis-media/media.amp?streamprofile=Sub
+#   Wyze (custom firmware):  rtsp://USER:PASS@IP/live
+#   Generic:   rtsp://USER:PASS@IP/onvif-media/media.amp?profile=profile_1_h264
+#   Generic:   rtsp://USER:PASS@IP/onvif-media/media.amp?profile=profile_2_h264
+#   Generic:   rtsp://USER:PASS@IP/live.sdp
+#   Generic:   rtsp://USER:PASS@IP/h264.sdp
+#   Generic:   rtsp://USER:PASS@IP/cam0_0   # main
+#   Generic:   rtsp://USER:PASS@IP/cam0_1   # sub
+#
+# Step 3 — Test each URL with FFmpeg before pasting into Frigate:
+#
+#   docker run --rm linuxserver/ffmpeg:latest \
+#     -rtsp_transport tcp -i "rtsp://USER:PASS@IP/your-url" \
+#     -frames:v 1 -f null - 2>&1 | grep "Stream #"
+#
+# If output shows "Stream #0:0: Video: h264, ..." → URL works.
+###############################################################################
+
+cameras:
+  parking:
+    ffmpeg:
+      inputs:
+        # SUB stream (low-res) for AI detection — REPLACE with your discovered URL
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/onvif-media/media.amp?profile=profile_2_h264
+          roles: [detect]
+        # MAIN stream (high-res) for recording — REPLACE with your discovered URL
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/onvif-media/media.amp?profile=profile_1_h264
+          roles: [record]
+
+      # Some generic cameras have unstable RTSP servers and disconnect periodically.
+      # If you see "Connection refused" errors in Frigate logs, add reconnect flags:
+      #
+      # input_args:
+      #   - -avoid_negative_ts
+      #   - make_zero
+      #   - -fflags
+      #   - +genpts+discardcorrupt
+      #   - -rtsp_transport
+      #   - tcp
+      #   - -timeout
+      #   - "5000000"
+      #   - -use_wallclock_as_timestamps
+      #   - "1"

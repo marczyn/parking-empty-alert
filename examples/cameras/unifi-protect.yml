@@ -1,0 +1,57 @@
+###############################################################################
+# Frigate camera template — UniFi Protect
+#
+# Tested with:
+#   G3, G3 Flex, G3 Bullet, G3 Instant
+#   G4 Pro, G4 Doorbell, G4 Bullet, G4 Instant, G4 PTZ
+#   AI 360, AI Bullet, AI Pro, AI Theta
+#   G5 Bullet, G5 Pro, G5 Flex
+#
+# Requirements:
+#   - UniFi Cloud Gateway / UDM Pro / Cloud Key with UniFi Protect installed
+#   - UniFi Protect controller version 2.0+
+#
+# Setup steps:
+#
+# Step 1 — Enable RTSP streams in UniFi Protect
+#
+#   1. Open UniFi Protect web UI: https://<unifi-host>/protect/
+#   2. For each camera you want in Frigate:
+#      Settings → Streams → toggle ON High / Medium / Low streams
+#   3. UniFi Protect assigns each stream a unique URL key
+#
+# Step 2 — Get RTSP URLs
+#
+#   For each camera, the RTSP URL looks like:
+#     rtsp://<unifi-host>:7447/<random-key>
+#
+#   Example:
+#     rtsp://192.168.1.1:7447/abcdef1234567890ABCDEF
+#
+#   The key changes each time you re-enable RTSP for the stream.
+#
+# Step 3 — Use those URLs below (replace the placeholders)
+#
+# Important notes:
+#
+#   - Port 7447 (NOT 554) — UniFi Protect uses non-standard port
+#   - No username/password in URL — UniFi uses random key for auth
+#   - The key changes if you toggle RTSP off/on — save the URL
+#   - High stream is main, Low stream is sub
+###############################################################################
+
+cameras:
+  parking:
+    ffmpeg:
+      # UniFi Protect does NOT use FRIGATE_RTSP_USER/PASSWORD env vars,
+      # so don't reference {FRIGATE_RTSP_*} here. Paste the full URLs.
+      inputs:
+        # LOW stream (sub) for AI detection — paste from UniFi Protect UI
+        - path: rtsp://192.168.1.1:7447/REPLACE_WITH_LOW_STREAM_KEY
+          roles: [detect]
+        # HIGH stream (main) for recording — paste from UniFi Protect UI
+        - path: rtsp://192.168.1.1:7447/REPLACE_WITH_HIGH_STREAM_KEY
+          roles: [record]
+
+      # UniFi Protect streams are TCP RTSP only:
+      input_args: preset-rtsp-restream

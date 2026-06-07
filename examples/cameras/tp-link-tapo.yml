@@ -1,0 +1,58 @@
+###############################################################################
+# Frigate camera template — TP-Link Tapo
+#
+# Tested with: C100, C110, C200, C210, C310, C320WS, C520WS, C420S2
+#
+# Important: Tapo cameras require a SEPARATE "third-party access" account
+# (different from your TP-Link cloud account).
+#
+# Setup steps:
+#
+# Step 1 — Create third-party access account in Tapo app:
+#
+#   1. Open Tapo app on phone
+#   2. Tap your camera → Camera Settings (gear icon top-right)
+#   3. Advanced Settings → Camera Account
+#   4. Toggle ON
+#   5. Set username and password — write them down (case-sensitive)
+#
+# Step 2 — Find camera IP:
+#
+#   Open Tapo app → camera → Settings → Device Info → IP address
+#   Or check your router DHCP list for "Tapo-*"
+#
+# Step 3 — Set a static IP (important! Tapo loves to renew DHCP):
+#
+#   In your router, set a DHCP reservation for the Tapo MAC address.
+#
+# RTSP URL pattern:
+#
+#   Main:  rtsp://USER:PASS@IP:554/stream1
+#   Sub:   rtsp://USER:PASS@IP:554/stream2
+#
+# Where USER/PASS are the THIRD-PARTY ACCESS credentials (not Tapo cloud).
+#
+# Quirks:
+#   - Sub stream is sometimes limited to 360p @ 15fps (no way to increase)
+#   - If detection accuracy is poor, use stream1 (main) for both detect + record
+#   - Older firmwares (<1.1.0) may not support RTSP at all — update firmware
+#   - Battery cameras (C100, C310) have RTSP only when plugged in to power
+###############################################################################
+
+cameras:
+  parking:
+    ffmpeg:
+      inputs:
+        # SUB stream — for AI detection
+        # Note: if Tapo sub is too low-res for detection, use main stream for both:
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/stream2
+          roles: [detect]
+        # MAIN stream — for recording
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/stream1
+          roles: [record]
+
+    # Tapo sub-streams have low resolution — adjust detect block:
+    detect:
+      width: 640
+      height: 360
+      fps: 5

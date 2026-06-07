@@ -8,11 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Non-Reolink camera templates (Hikvision, Dahua, generic ONVIF)
 - NAS deployment guides (Synology, UnRAID, QNAP)
 - Telegram, Pushover, Gotify notification templates
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
+
+## [1.2.0] — 2026-06-07
+
+### Added
+
+#### Non-Reolink camera templates
+- `examples/cameras/README.md` — overview, lookup table for 10+ brands, universal tips
+- `examples/cameras/hikvision.yml` — Hikvision (and Annke/LTS/Onwote rebrands)
+- `examples/cameras/dahua.yml` — Dahua (and Amcrest/Lorex rebrands)
+- `examples/cameras/generic-onvif.yml` — Foscam, Wyze, Eufy, Axis, no-name ONVIF
+- `examples/cameras/unifi-protect.yml` — UniFi G3/G4/G5/AI on port 7447
+- `examples/cameras/tp-link-tapo.yml` — Tapo C100/C200/C310 with third-party access account
+- Documentation:
+  - How to find RTSP URL (vendor docs, ONVIF Device Manager, FFmpeg test loop)
+  - Common ports table (RTSP, ONVIF, HTTP, HTTPS)
+  - H.264 vs H.265 codec guidance
+  - Auth failure debugging (URL-encoded special chars)
+  - Per-vendor quirks table (Hikvision B-frames, Dahua focus, Tapo sub-stream limit, Wyze RTSP crash, Axis URLs)
+  - Camera positioning section (angle, distance, FoV, lighting, weather)
+  - How to contribute new templates (issue template)
 
 ## [1.1.0] — 2026-06-07
 
@@ -119,5 +138,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

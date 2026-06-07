@@ -1,0 +1,46 @@
+###############################################################################
+# Frigate camera template — Dahua / Amcrest
+#
+# Tested with: IPC-HFW2231, IPC-HDW3441, IPC-HDW5849, IPC-T2A22, IPC-K22A
+# Amcrest (rebranded Dahua): IP4M-1051W, IP8M-2493, IP5M-T1179, IPC-T2A23
+# Lorex (also Dahua-based): N841B/N842B, LBV2531
+#
+# RTSP URL pattern:
+#   rtsp://USER:PASS@IP:554/cam/realmonitor?channel={ch}&subtype={stream}
+#
+# Where:
+#   {ch}     = channel number (1 for single camera, 1-N for NVR)
+#   {stream} = 0 (main, high-res) or 1 (sub, low-res)
+#
+# Examples:
+#   Single camera main:  rtsp://admin:pass@192.168.1.100:554/cam/realmonitor?channel=1&subtype=0
+#   Single camera sub:   rtsp://admin:pass@192.168.1.100:554/cam/realmonitor?channel=1&subtype=1
+#   NVR channel 3 main:  rtsp://admin:pass@192.168.1.50:554/cam/realmonitor?channel=3&subtype=0
+#
+# Configuration steps:
+#   1. Web UI → Setting → System → Account → Add User → "frigate" (Live + Playback perms only)
+#   2. Web UI → Setting → Network → Connection → check Port 554 (RTSP)
+#   3. Web UI → Setting → Camera → Video → Sub Stream:
+#      - Resolution: 640x360 or VGA (640x480)
+#      - Frame Rate: 5
+#      - Bit Rate: 256 Kbps
+#      - Compression: H.264 main profile
+#   4. Web UI → Setting → Camera → Video → Main Stream:
+#      - Resolution: 1080p (or native)
+#      - Frame Rate: 15-25
+#      - Bit Rate: 2048 Kbps
+#      - Compression: H.264 high profile
+#
+# Important: Dahua requires admin password to be set BEFORE RTSP works.
+###############################################################################
+
+cameras:
+  parking:
+    ffmpeg:
+      inputs:
+        # SUB stream (low-res) for AI detection
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/cam/realmonitor?channel=1&subtype=1
+          roles: [detect]
+        # MAIN stream (high-res) for recording
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/cam/realmonitor?channel=1&subtype=0
+          roles: [record]
