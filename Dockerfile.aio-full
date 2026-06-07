@@ -154,19 +154,17 @@ automation:
           message: "🅿️ Parking spot FREE!"
 EOF
 
-# Init script that runs ONCE on first start to substitute env vars
-RUN mkdir -p /etc/s6-overlay/s6-rc.d/init-env && \
-    echo "oneshot" > /etc/s6-overlay/s6-rc.d/init-env/type && \
-    cat > /etc/s6-overlay/s6-rc.d/init-env/up <<'EOF'
+# Init script — substitutes env vars in HA config at container start
+# Uses cont-init.d (shell scripts, run before services) instead of s6-rc oneshot
+RUN mkdir -p /etc/cont-init.d && \
+    cat > /etc/cont-init.d/10-ha-config.sh <<'EOF'
 #!/bin/sh
-# Substitute env vars in HA config
 if [ -f /opt/ha-config/configuration.yaml ]; then
   sed -i "s/PLACEHOLDER_PHONE/${WHATSAPP_PHONE:-48501234567}/g" /opt/ha-config/configuration.yaml
   sed -i "s/PLACEHOLDER_APIKEY/${WHATSAPP_APIKEY:-1234567}/g" /opt/ha-config/configuration.yaml
 fi
 EOF
-RUN chmod +x /etc/s6-overlay/s6-rc.d/init-env/up && \
-    touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-env
+RUN chmod +x /etc/cont-init.d/10-ha-config.sh
 
 # Defaults — user overrides via docker -e or compose
 ENV FRIGATE_CAMERA_IP=192.168.1.100
