@@ -39,9 +39,12 @@
       friendly_name: "First free spot number"
       icon_template: mdi:numeric
       value_template: >
+        {# HA Jinja2 does not include the 'loopcontrols' extension —
+           {% break %} is unsupported. Use namespace to track first match instead. #}
+        {% set ns = namespace(first_free=None) %}
         {% for n in range(1, 6) %}
-          {% if states('sensor.parking_lot_spot_' ~ n ~ '_car') | int(0) == 0 %}
-            {{ n }}
-            {% break %}
+          {% if ns.first_free is none and states('sensor.parking_lot_spot_' ~ n ~ '_car') | int(0) == 0 %}
+            {% set ns.first_free = n %}
           {% endif %}
         {% endfor %}
+        {{ ns.first_free if ns.first_free is not none else 'all_taken' }}

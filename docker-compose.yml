@@ -29,9 +29,14 @@ services:
       - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
       - mosquitto-log:/mosquitto/log
+    environment:
+      # Pass credentials into container so healthcheck can authenticate
+      MQTT_USER: "${MQTT_USER}"
+      MQTT_PASSWORD: "${MQTT_PASSWORD}"
     healthcheck:
       # mosquitto_pub returns 0 on success, non-zero on connection failure
-      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t healthcheck -m ok -q 0 -u ${MQTT_USER} -P ${MQTT_PASSWORD} 2>&1 | grep -qE '^$$' || exit 1"]
+      # $$VAR escapes compose variable interpolation; resolves to $VAR at runtime
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t healthcheck -m ok -q 0 -u $$MQTT_USER -P $$MQTT_PASSWORD || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -98,7 +103,10 @@ services:
       - ./config/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8123 || exit 1"]
+      # HA's /api/ endpoint returns 401 without auth — counts as "responding"
+      # which is what we want. Using -o /dev/null -w '%{http_code}' to capture
+      # status code; accept 200 (running) or 401 (running, needs auth).
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -w '%{http_code}' http://localhost:8123 | grep -qE '^(200|401)$$' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

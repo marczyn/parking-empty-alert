@@ -113,10 +113,12 @@ views:
       - type: entities
         title: System status
         entities:
-          - entity: automation.parking_spot_empty_whatsapp
+          - entity: automation.parking_spot_free_alert
             name: Empty-spot alert automation
           - entity: automation.frigate_offline_watchdog
             name: Frigate offline watchdog
+          - entity: automation.frigate_recovered_watchdog
+            name: Frigate recovered watchdog
       - type: iframe
         title: Frigate UI
         url: http://frigate:5000

@@ -18,60 +18,120 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install YAML linter
+      - name: Install yamllint
         run: pip install yamllint
 
-      - name: Validate YAML syntax (all files)
+      - name: Lint YAML formatting (warnings only)
         run: |
-          yamllint -d "{extends: default, rules: {line-length: disable, indentation: {indent-sequences: consistent}, document-start: disable, comments: {min-spaces-from-content: 1}, truthy: {check-keys: false}}}" \
+          yamllint -d "{extends: default, rules: {line-length: disable, indentation: {indent-sequences: consistent}, document-start: disable, comments: {min-spaces-from-content: 1}, truthy: {check-keys: false}, braces: disable, brackets: disable}}" \
             docker-compose.yml \
+            docker-compose.macwin.yml \
             config/frigate.yml \
-            config/mosquitto.conf \
             config/homeassistant/*.yaml \
-            examples/multi-camera/*.yml || true
-          # Real strict check: YAML must parse
-          python -c "
-          import yaml, sys, glob
+            examples/multi-camera/*.yml \
+            examples/multi-camera/*.yaml \
+            examples/multi-spot-single-camera/*.yml \
+            examples/multi-spot-single-camera/*.yaml \
+            examples/lpr/*.yml \
+            examples/lpr/*.yaml \
+            examples/cameras/*.yml || true
+
+      - name: Validate YAML structure (with HA tag support)
+        run: |
+          python3 <<'PYEOF'
+          import glob
+          import sys
+          import yaml
+
+          # HA-specific YAML tag support — required for !include, !secret, !env_var
+          class HALoader(yaml.SafeLoader):
+              pass
+
+          def ha_tag_passthrough(loader, node):
+              if isinstance(node, yaml.ScalarNode):
+                  return loader.construct_scalar(node)
+              elif isinstance(node, yaml.SequenceNode):
+                  return loader.construct_sequence(node)
+              elif isinstance(node, yaml.MappingNode):
+                  return loader.construct_mapping(node)
+              return None
+
+          for tag in ['!include', '!secret', '!env_var', '!include_dir_list',
+                      '!include_dir_named', '!include_dir_merge_list', '!include_dir_merge_named']:
+              HALoader.add_constructor(tag, ha_tag_passthrough)
+
+          # All YAML files we care about
+          files = sorted(set(
+              ['docker-compose.yml', 'docker-compose.macwin.yml', 'config/frigate.yml'] +
+              glob.glob('config/homeassistant/*.yaml') +
+              glob.glob('examples/multi-camera/*.yml') +
+              glob.glob('examples/multi-camera/*.yaml') +
+              glob.glob('examples/multi-spot-single-camera/*.yml') +
+              glob.glob('examples/multi-spot-single-camera/*.yaml') +
+              glob.glob('examples/lpr/*.yml') +
+              glob.glob('examples/lpr/*.yaml') +
+              glob.glob('examples/cameras/*.yml')
+          ))
+
           ok = True
-          for f in ['docker-compose.yml', 'config/frigate.yml'] + glob.glob('config/homeassistant/*.yaml') + glob.glob('examples/multi-camera/*.yml'):
+          for f in files:
               try:
-                  yaml.safe_load(open(f))
+                  yaml.load(open(f), Loader=HALoader)
                   print(f'✓ {f}')
               except Exception as e:
                   print(f'✗ {f}: {e}')
                   ok = False
-          sys.exit(0 if ok else 1)
-          "
 
-      - name: Validate docker-compose.yml structure
+          if not ok:
+              sys.exit(1)
+          PYEOF
+
+      - name: Validate docker-compose.yml structure (Linux mode)
         run: |
-          # Need fake .env for compose config to succeed
           cp .env.example .env
           docker compose config --quiet
           echo "✓ docker-compose.yml structure OK"
+
+      - name: Validate docker-compose.yml + macwin override (Docker Desktop mode)
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.macwin.yml config --quiet
+          echo "✓ docker-compose + macwin override OK"
+
+      - name: Validate docker-compose.yml + LPR override
+        run: |
+          docker compose -f docker-compose.yml -f examples/lpr/docker-compose.lpr.yml config --quiet
+          echo "✓ docker-compose + LPR override OK"
 
   shellcheck:
     name: ShellCheck scripts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Run shellcheck
         run: |
-          sudo apt-get install -y shellcheck
           shellcheck scripts/setup.sh
           echo "✓ setup.sh OK"
 
   frigate-config:
-    name: Frigate config validation
+    name: Frigate config schema validation
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Test base config + example configs against frigate stable
+        config:
+          - config/frigate.yml
+          - examples/multi-camera/frigate.yml
+          - examples/multi-spot-single-camera/frigate.yml
+          - examples/lpr/frigate.lpr.yml
     steps:
       - uses: actions/checkout@v4
-      - name: Parse Frigate config schema
+      - name: Validate ${{ matrix.config }} schema
         run: |
-          # Pull Frigate image and validate config syntax
           docker pull ghcr.io/blakeblackshear/frigate:stable
           docker run --rm \
-            -v "$PWD/config/frigate.yml:/config/config.yml:ro" \
+            -v "$PWD/${{ matrix.config }}:/config/config.yml:ro" \
             --entrypoint python3 \
             ghcr.io/blakeblackshear/frigate:stable \
             -c "
@@ -84,5 +144,5 @@ jobs:
               assert 'ffmpeg' in cam, f'camera {name}: missing ffmpeg'
               assert 'zones' in cam, f'camera {name}: missing zones'
               assert any('detect' in inp.get('roles',[]) for inp in cam['ffmpeg']['inputs']), f'camera {name}: no detect role'
-          print('✓ frigate.yml schema OK')
+          print('✓ ${{ matrix.config }} schema OK')
           "

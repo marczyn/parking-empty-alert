@@ -144,12 +144,22 @@ cameras:
     ###############################################################################
     # ZONE: parking_spot
     # Coordinates = polygon on the frame, 4 points x,y (as %).
-    # PLACEHOLDER — draw in Frigate UI! (instructions in README.md)
-    # After saving from UI, paste the coordinates list here:
+    #
+    # ⚠️ THIS IS A PLACEHOLDER — covers nearly the entire frame as a visual
+    # warning. You MUST replace these coordinates with your actual parking spot:
+    #
+    #   1. Open Frigate UI → Debug → Edit Zones
+    #   2. Draw polygon around your parking spot
+    #   3. Save → copy coordinates from popup
+    #   4. Replace the line below
+    #   5. docker compose restart frigate
+    #
+    # Detailed instructions in docs/INSTALLATION.md §8
     ###############################################################################
     zones:
       parking_spot:
-        coordinates: 0.35,0.50,0.65,0.50,0.65,0.85,0.35,0.85   # PLACEHOLDER
+        # ⚠️ REPLACE THESE COORDINATES — see comment above
+        coordinates: 0.01,0.01,0.99,0.01,0.99,0.99,0.01,0.99   # PLACEHOLDER: whole frame
         inertia: 3              # object must be in zone for 3 frames (anti-blink)
         loitering_time: 0       # instantly count as "in zone"
         objects:

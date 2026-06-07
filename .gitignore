@@ -1,8 +1,13 @@
-# Secrets — NIGDY do git!
+# Secrets — NEVER commit real values to git!
 .env
-config/homeassistant/secrets.yaml
 config/mosquitto/passwd
 config/passwd
+
+# Note: config/homeassistant/secrets.yaml is tracked in git as a TEMPLATE
+# with placeholder values. setup.sh overwrites it locally with real secrets.
+# After running setup.sh, do NOT git commit the local secrets.yaml — verify
+# placeholder values are restored before any commit:
+#   grep -E '(zmien_to|change_this|1234567)' config/homeassistant/secrets.yaml
 
 # HA runtime files
 config/homeassistant/.storage/

@@ -12,6 +12,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.1] — 2026-06-07
+
+### Fixed
+
+#### 🔴 Critical — broken-at-runtime fixes
+
+- **Mosquitto healthcheck always failed → stack never started.** Mosquitto service
+  had no `environment:` block, so `${MQTT_USER}`/`${MQTT_PASSWORD}` referenced in
+  the healthcheck were empty strings inside the container. `mosquitto_pub` rejected
+  auth, healthcheck failed, `depends_on: service_healthy` on Frigate + HA never
+  satisfied. **First-time stack startup didn't work.** Added env block; switched
+  `${}` → `$$` to defer interpolation to runtime.
+
+- **`ui-lovelace.yaml` referenced non-existent `automation.parking_spot_empty_whatsapp`.**
+  Real automation ID is `parking_spot_free_alert`. Dashboard showed "unknown" entity
+  on the Diagnostics tab. Fixed reference + added `frigate_recovered_watchdog`
+  reference too.
+
+- **CI `python yaml.safe_load()` failed on `configuration.yaml` with `!include`/`!secret`
+  tags.** PyYAML doesn't know HA-specific tags. **First CI run on every PR would fail.**
+  Added `HALoader` subclass with pass-through constructors for all HA tags
+  (`!include`, `!secret`, `!env_var`, `!include_dir_*`).
+
+#### 🟡 Important — quality + coverage
+
+- **CI missing coverage for v1.1/v1.2/v1.3 example files.** Added globs for:
+  `examples/lpr/*.yml`, `examples/lpr/*.yaml`,
+  `examples/multi-spot-single-camera/*.yml`, `examples/multi-spot-single-camera/*.yaml`,
+  `examples/cameras/*.yml`, `docker-compose.macwin.yml`.
+
+- **CI didn't validate `docker-compose.macwin.yml` or LPR override.** Added two new
+  CI steps: `docker compose -f docker-compose.yml -f docker-compose.macwin.yml config`
+  and same for LPR override.
+
+- **`{% break %}` in template sensor — unsupported by HA's Jinja2 (lacks `loopcontrols`
+  extension).** Rewrote `sensor.parking_first_free_spot` template using `namespace`
+  pattern. Also returns `'all_taken'` instead of empty string when all spots occupied.
+
+- **Default `config/frigate.yml` zone coordinates looked like a real polygon
+  (35-65% middle of frame).** Users could miss the placeholder warning and ship
+  with the default zone, getting false alarms. Changed to obvious whole-frame
+  polygon (0.01-0.99) with prominent `⚠️ REPLACE` warning.
+
+#### 🟢 Nice-to-have polish
+
+- **Frigate config CI hardcoded `frigate:stable`** while configs declared
+  `version: 0.16-0`. Now CI uses matrix strategy over all 4 frigate configs
+  (`config/`, `multi-camera`, `multi-spot-single-camera`, `lpr`) — pulls
+  the same `:stable` once per config, validates each.
+
+- **Frigate-config CI didn't test `examples/lpr/frigate.lpr.yml`.** Now in matrix.
+
+- **HA healthcheck `curl -f http://localhost:8123` returned 404 in some boot states.**
+  Changed to capture HTTP status and accept `200` or `401` (auth needed = HA is up).
+
+- **`secrets.yaml` semantics unclear** — committed as template but in `.gitignore`.
+  Removed `secrets.yaml` from `.gitignore`; added prominent ⚠️ TEMPLATE header in
+  the file itself; added safety check pattern in `.gitignore` comments.
+
+### Changed
+
+- CI workflow restructured: `validate` step uses HALoader; `frigate-config` step
+  uses matrix strategy; added compose override validation steps.
+
+[1.3.1]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.1
+
 ## [1.3.0] — 2026-06-07
 
 ### Added
@@ -169,7 +235,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.1...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0
