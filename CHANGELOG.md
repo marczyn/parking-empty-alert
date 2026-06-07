@@ -12,6 +12,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.13] — 2026-06-07
+
+### Fixed (Round 13 code audit — 4 real gaps, NO regressions)
+
+After 12 rounds of audits with increasing regression rate (rounds 10-12 had
+~40% regressions in previous fixes), round 13 was scoped to find ONLY real
+risks that aren't fix-the-fix cycles.
+
+#### 🔴 Critical
+
+- **`secrets.yaml` could drift from `.env` after manual edits.** Setup.sh's
+  re-run path generated secrets.yaml on first install only. If user manually
+  edited `.env` later (e.g., changed WHATSAPP_APIKEY) and re-ran setup.sh,
+  secrets.yaml kept stale values → HA notify sent to old phone/key. Now
+  setup.sh ALWAYS re-syncs secrets.yaml from current .env values.
+
+#### 🟡 Important
+
+- **Hwaccel validation missing for Coral USB TPU.** v1.3.10 added VAAPI +
+  NVIDIA validation; Coral was overlooked. Added check: if frigate.yml has
+  `type: edgetpu`, verify `/dev/bus/usb` passthrough in compose.
+
+- **Mosquitto persistence had no autosave config** — relied on default
+  1800s autosave. Container crash within 30 min of subscription change =
+  partial state loss + potential corruption. Added `autosave_interval 60`
+  + `autosave_on_changes false` for safer flush cadence.
+
+- **`examples/multi-camera/` had no `ui-lovelace.yaml`** — asymmetric vs
+  multi-spot (which has full dashboard). Multi-camera users got generic HA
+  default. Added 3-camera dashboard: Overview view with per-camera glance +
+  live cards + 24h history + Diagnostics view.
+
+[1.3.13]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.13
+
 ## [1.3.12] — 2026-06-07
 
 ### Fixed (Round 12 code audit — 5 more gaps)
@@ -726,7 +760,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.12...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.13...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0
