@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+- Telegram, Pushover, Gotify notification templates
+- Coral USB TPU detailed setup walkthrough
+- `make` targets for common operations
+
 ## [1.3.19] — 2026-06-07
 
 ### Fixed (Round 20 audit — 1 gap)
@@ -18,11 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or switch to Telegram (no rate limit).
 
 [1.3.19]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.19
-
-### Planned
-- Telegram, Pushover, Gotify notification templates
-- Coral USB TPU detailed setup walkthrough
-- `make` targets for common operations
 
 ## [1.3.18] — 2026-06-07
 
