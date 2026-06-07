@@ -54,7 +54,7 @@ EOF
 RUN mkdir -p /etc/s6-overlay/s6-rc.d/mosquitto && \
     echo "longrun" > /etc/s6-overlay/s6-rc.d/mosquitto/type && \
     cat > /etc/s6-overlay/s6-rc.d/mosquitto/run <<'EOF'
-#!/usr/bin/with-contenv bash
+#!/bin/sh
 exec mosquitto -c /etc/mosquitto/mosquitto.conf
 EOF
 RUN chmod +x /etc/s6-overlay/s6-rc.d/mosquitto/run
@@ -92,9 +92,9 @@ cameras:
     enabled: true
     ffmpeg:
       inputs:
-        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{CAMERA_IP}:554/h264Preview_01_sub
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAMERA_IP}:554/h264Preview_01_sub
           roles: [detect]
-        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{CAMERA_IP}:554/h264Preview_01_main
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAMERA_IP}:554/h264Preview_01_main
           roles: [record]
     detect:
       width: 640
@@ -171,7 +171,7 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/init-env/up && \
     touch /etc/s6-overlay/s6-rc.d/user/contents.d/init-env
 
 # Defaults — user overrides via docker -e or compose
-ENV CAMERA_IP=192.168.1.100
+ENV FRIGATE_CAMERA_IP=192.168.1.100
 ENV FRIGATE_RTSP_USER=frigate
 ENV FRIGATE_RTSP_PASSWORD=changeme
 ENV WHATSAPP_PHONE=48501234567
