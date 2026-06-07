@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.19] — 2026-06-07
+
+### Fixed (Round 20 audit — 1 gap)
+
+- **Multi-camera `parking_summary_hourly` had no rate-limit documentation.**
+  Combined with per-spot alerts during burst events (multiple cars leaving
+  in 1 min), could exceed CallMeBot 1/min limit → silent message drops.
+  Added warning comment with 3 mitigations: disable summary, use HA Companion,
+  or switch to Telegram (no rate limit).
+
+[1.3.19]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.19
+
 ### Planned
 - Telegram, Pushover, Gotify notification templates
 - Coral USB TPU detailed setup walkthrough
@@ -911,7 +923,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.18...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.19...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0
