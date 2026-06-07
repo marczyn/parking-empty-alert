@@ -289,6 +289,18 @@ Regardless of brand, these tips apply:
 - **Mixed:** ColorVu (Hikvision) or Color Night Vision (Dahua) maintain color in low light
 - **24/7 evidence-quality:** add external floodlight aimed at parking spots
 
+### Battery cameras — not recommended for Frigate
+
+⚠️ **Battery-powered cameras (Reolink Argus 3, Reolink Go, Eufy SoloCam) are
+NOT suitable for this project.** Reasons:
+
+- RTSP only active while camera is "awake" — most of the time it sleeps to save battery
+- Frigate connects every few seconds → camera stays awake → battery dies in days
+- When camera sleeps, RTSP cuts off → Frigate retries in a loop → noisy logs
+- Most battery cameras don't expose true RTSP at all (cloud-only via app)
+
+**Use wired POE or 12V DC cameras** for reliable 24/7 detection.
+
 ### Weather protection
 
 For outdoor:

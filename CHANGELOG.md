@@ -12,6 +12,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.7] — 2026-06-07
+
+### Fixed (Round 7 code audit — 7 more gaps)
+
+#### 🔴 Critical
+
+- **Recorder exclude glob `parking_*_motion` did NOT match `parking_motion`.**
+  Glob `*` matches any chars including empty, BUT `_*_` requires literal
+  underscore on both sides — meaning the main motion sensor was NEVER excluded.
+  DB still ballooned despite v1.3.6 "fix". Rewrote globs as `parking*motion`
+  (without internal underscore requirement) — now actually catches all variants.
+
+- **HA `mqtt:` YAML block is deprecated since HA 2024.10** and may be removed
+  in future versions. Block still works but logs warning. Added prominent
+  documentation comment with UI-setup alternative; kept YAML for zero-touch
+  setup.sh installation path.
+
+#### 🟡 Important
+
+- **`setup.sh` didn't validate `.env` placeholder values.** Users could
+  `cp .env.example .env` and run setup.sh — stack started with `WHATSAPP_APIKEY=1234567`,
+  CallMeBot rejected all messages, MQTT auth failed. Added validation refusing
+  to proceed if `.env` contains placeholder strings.
+
+- **`parking_summary_change` automation had no throttle.** If `sensor.parking_free_count`
+  flickered (e.g., during occupancy transitions), automation fired multiple times
+  in < 1 min → CallMeBot rate limit (1/min) → silent message drops. Added
+  5-minute throttle via condition template checking `last_triggered`.
+
+- **Lovelace YAML mode trade-off undocumented.** After v1.3.6 enabled YAML mode,
+  HA UI's "Edit Dashboard" button is grayed out. Users wanting UI editing didn't
+  know how to switch back. Added USER_GUIDE.md note with both options.
+
+#### 🟢 Polish
+
+- **Battery cameras (Argus, Eufy SoloCam) not flagged as incompatible.** Added
+  ⚠️ section to `examples/cameras/README.md` explaining RTSP sleep/wake issues
+  and recommending wired cameras only.
+
+[1.3.7]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.7
+
 ## [1.3.6] — 2026-06-07
 
 ### Fixed (Round 6 code audit — 7 more gaps)
@@ -489,7 +530,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.6...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.7...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

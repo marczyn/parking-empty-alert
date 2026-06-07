@@ -109,11 +109,20 @@
 ###############################################################################
 - id: parking_summary_change
   alias: "📊 Parking summary on occupancy change"
+  # mode: single + max_exceeded: silent prevents queueing during flicker.
+  # Plus we add a 5-min throttle gate (CallMeBot rate limit is 1/min).
   mode: single
+  max_exceeded: silent
   trigger:
     - platform: state
       entity_id: sensor.parking_free_count
       for: {minutes: 1}
+  condition:
+    # Throttle: only fire if 5+ min since last fire
+    - condition: template
+      value_template: >
+        {% set last = state_attr('automation.parking_summary_change', 'last_triggered') %}
+        {{ last is none or (now() - last).total_seconds() > 300 }}
   action:
     - service: notify.whatsapp_parking
       data:

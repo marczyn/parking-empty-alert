@@ -144,10 +144,20 @@ The automation uses **`sensor.parking_parking_spot_car`** — the integer count 
 
 ### Quick dashboard card (optional)
 
-To add a parking status card to the dashboard:
+⚠️ **Lovelace YAML mode is active** (set in `configuration.yaml` since v1.3.6).
+This means the **Edit Dashboard** button in HA UI is grayed out — all dashboard
+changes happen by editing `config/homeassistant/ui-lovelace.yaml`.
 
-1. **Overview → Edit Dashboard (top-right pencil icon)**
-2. **+ Add Card → Entities**
+**If you prefer UI editing** (storage mode):
+1. Open `config/homeassistant/configuration.yaml`
+2. Remove or comment out the `lovelace: mode: yaml` block
+3. Restart HA
+4. Now HA gives you the UI editor (but our shipped custom dashboard is no longer loaded)
+
+**If staying in YAML mode** (default — recommended for version control):
+1. Edit `config/homeassistant/ui-lovelace.yaml` directly
+2. Add cards under any `view:` → `cards:` block
+3. Reload via Developer Tools → YAML → "Reload Lovelace"
 3. Add these entities:
    - `sensor.parking_parking_spot_car`
    - `binary_sensor.parking_motion`

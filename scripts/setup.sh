@@ -20,6 +20,17 @@ fi
 if [ -d .git ] && [ ! -x .git/hooks/pre-commit ]; then
   bash scripts/install-git-hooks.sh 2>/dev/null || true
 fi
+
+# Reject placeholder values from .env.example — they always indicate the user
+# forgot to edit .env before running setup.sh
+if [ -f .env ]; then
+  if grep -qE '^(RTSP_PASSWORD|WHATSAPP_PHONE|WHATSAPP_APIKEY)=(change_this|48501234567|1234567)$' .env; then
+    echo "❌ .env contains placeholder values from .env.example."
+    echo "   Please edit .env with your real values, OR delete .env"
+    echo "   to let setup.sh ask interactively."
+    exit 1
+  fi
+fi
 if ! docker compose version &>/dev/null && ! docker-compose version &>/dev/null; then
   echo "❌ Docker Compose not available. Update Docker."
   exit 1

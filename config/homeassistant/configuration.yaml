@@ -26,9 +26,14 @@ recorder:
   exclude:
     domains:
       - update                 # don't record firmware update entities
+    # Note: '*' in entity_globs is glob, NOT regex. It matches any chars
+    # including underscore. So 'parking*motion' matches 'parking_motion'
+    # AND 'parking_lot_motion' AND 'parking_lot_spot_1_motion'.
     entity_globs:
-      - sensor.parking_*_motion_count   # extremely chatty
-      - binary_sensor.parking_*_motion  # changes every few seconds
+      - binary_sensor.parking*motion     # all parking-camera motion sensors
+      - binary_sensor.parking*motion_*   # sub-events (audio, person, etc.)
+      - sensor.parking*active_objects    # high-frequency object counts
+      - sensor.parking*fps               # Frigate FPS metrics
     event_types:
       - call_service           # noisy
 
@@ -47,6 +52,21 @@ recorder:
 #   # ip_ban_enabled: true
 #   # login_attempts_threshold: 5
 
+# ─────────────────────────────────────────────────────────────
+# MQTT broker connection
+#
+# ⚠️ NOTE: HA 2024.10+ deprecated YAML mqtt config in favor of UI setup.
+# This block still works through HA 2026.x but logs a deprecation warning.
+#
+# RECOMMENDED for new installs: remove this block and configure MQTT via
+# Settings → Devices & Services → Add Integration → MQTT
+# - Broker: mosquitto
+# - Port: 1883
+# - Username: frigate
+# - Password: (from secrets.yaml or .env MQTT_PASSWORD)
+#
+# Kept as YAML here for zero-touch setup via setup.sh.
+# ─────────────────────────────────────────────────────────────
 mqtt:
   broker: mosquitto
   port: 1883
