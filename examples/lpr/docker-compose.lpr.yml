@@ -28,7 +28,7 @@ services:
       - codeproject-ai-data:/etc/codeproject/ai
       - codeproject-ai-models:/app/modules/ALPR/paddleocr
     environment:
-      TZ: "Europe/Warsaw"
+      TZ: "${TZ:-UTC}"
     # Uncomment if you have NVIDIA GPU:
     # deploy:
     #   resources:

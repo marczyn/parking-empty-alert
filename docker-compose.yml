@@ -27,8 +27,14 @@ services:
       - "1883:1883"
     volumes:
       - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./config/passwd:/mosquitto/config/passwd:ro
       - mosquitto-data:/mosquitto/data
-      - mosquitto-log:/mosquitto/log
+    # Built-in log rotation via Docker (json-file driver default = 10MB × 3 files)
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       # Pass credentials into container so healthcheck can authenticate
       MQTT_USER: "${MQTT_USER}"
@@ -75,11 +81,18 @@ services:
         tmpfs:
           size: 1000000000   # 1GB cache in RAM
     ports:
-      - "5000:5000"          # Frigate UI
-      - "8554:8554"          # RTSP restream (optional)
-      - "8555:8555/tcp"      # WebRTC TCP
-      - "8555:8555/udp"      # WebRTC UDP
+      - "5000:5000"          # Frigate UI (web)
+      - "8554:8554"          # RTSP restream — re-publishes camera streams; useful
+                             # for viewing in VLC or other RTSP clients without
+                             # hitting the camera directly. Remove if not needed.
+      - "8555:8555/tcp"      # WebRTC TCP — low-latency live preview in Frigate UI
+      - "8555:8555/udp"      # WebRTC UDP — same as above (UDP path is preferred)
     # Frigate's built-in healthcheck is already in the image (HTTP /api/version)
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
 
   # ─────────────────────────────────────────────────────────────
   # Home Assistant — automations + push notifications
@@ -98,7 +111,9 @@ services:
     network_mode: host
     privileged: true
     environment:
-      TZ: "Europe/Warsaw"
+      # Timezone — defaults to UTC if not set. Override via .env (TZ=America/New_York etc.)
+      # IANA timezone list: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      TZ: "${TZ:-UTC}"
     volumes:
       - ./config/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
@@ -111,8 +126,12 @@ services:
       timeout: 10s
       retries: 5
       start_period: 90s   # HA needs ~60s to fully boot
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
 
 volumes:
   mosquitto-data:
-  mosquitto-log:
   frigate-storage:

@@ -103,8 +103,15 @@ views:
           - binary_sensor.parking_car_occupied
       - type: iframe
         title: Frigate Events
-        url: http://frigate:5000/events
+        # Frigate UI iframe — uses host's public address since browser cannot
+        # resolve Docker DNS (e.g., "frigate"). Replace <DOCKER_HOST_IP> with
+        # the IP that your phone/browser sees (e.g., 192.168.1.10).
+        url: http://DOCKER_HOST_IP:5000/events
         aspect_ratio: 75%
+
+# IMPORTANT: After installing, replace DOCKER_HOST_IP everywhere in this file:
+#   sed -i 's/DOCKER_HOST_IP/192.168.1.10/g' config/homeassistant/ui-lovelace.yaml
+# (Use the IP that your browser uses to reach Home Assistant.)
 
   - title: Diagnostics
     path: diagnostics
@@ -121,5 +128,8 @@ views:
             name: Frigate recovered watchdog
       - type: iframe
         title: Frigate UI
-        url: http://frigate:5000
+        # Frigate UI iframe — uses host's public address since browser cannot
+        # resolve Docker DNS (e.g., "frigate"). Replace <DOCKER_HOST_IP> with
+        # the IP that your phone/browser sees (e.g., 192.168.1.10).
+        url: http://DOCKER_HOST_IP:5000
         aspect_ratio: 75%

@@ -18,22 +18,22 @@ mqtt:
 #   2. Send WhatsApp message: "I allow callmebot to send me messages"
 #   3. Response: "API Activated for your phone number. Your APIKEY is XXXXX"
 #   4. Put phone number + apikey in secrets.yaml (or via setup.sh)
+#
+# CallMeBot rate limit: 1 message per minute per phone number.
+#
+# notify.rest with method: GET sends all `data` fields as query parameters,
+# plus the message via `message_param_name`. Result URL:
+#   GET https://api.callmebot.com/whatsapp.php?phone=X&apikey=Y&text=Z
 # ─────────────────────────────────────────────────────────────
-rest_command:
-  whatsapp_send:
-    url: "https://api.callmebot.com/whatsapp.php?phone={{ phone }}&text={{ message | urlencode }}&apikey={{ apikey }}"
-    method: GET
-    timeout: 30
-
 notify:
   - name: whatsapp_parking
     platform: rest
-    resource: https://api.callmebot.com/whatsapp.php
-    method: GET_QUERY
+    resource: "https://api.callmebot.com/whatsapp.php"
+    method: GET
+    message_param_name: text
     data:
       phone: !secret whatsapp_phone
       apikey: !secret whatsapp_apikey
-    message_param_name: text
     verify_ssl: true
 
 automation: !include automations.yaml

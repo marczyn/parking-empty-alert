@@ -37,13 +37,17 @@ model:
 
 # Global FFmpeg settings
 ffmpeg:
-  # Choose ONE hwaccel preset (or remove line for CPU-only):
-  #   preset-vaapi      = Intel iGPU (most common)
-  #   preset-nvidia     = NVIDIA GPU
-  #   preset-rpi-64-h264 = Raspberry Pi 4/5
-  #   preset-rkmpp      = Rockchip (Orange Pi, NanoPi)
-  # Without this line = CPU (always works, higher CPU usage)
-  hwaccel_args: preset-vaapi
+  # Hardware acceleration is DISABLED by default (CPU-only — works everywhere).
+  # Uncomment ONE preset below if your host has compatible hardware:
+  #
+  #   hwaccel_args: preset-vaapi       # Intel iGPU (Haswell+ Celeron/i3/i5/i7/N100)
+  #   hwaccel_args: preset-nvidia      # NVIDIA GPU + CUDA driver installed
+  #   hwaccel_args: preset-rpi-64-h264 # Raspberry Pi 4/5
+  #   hwaccel_args: preset-rkmpp       # Rockchip (Orange Pi, NanoPi)
+  #
+  # ⚠️ DO NOT uncomment preset-vaapi unless you have an Intel iGPU — Frigate
+  # will FAIL to start on AMD-only / ARM / VM hosts without VAAPI passthrough.
+  # See docs/USER_GUIDE.md §15 for hardware acceleration guide.
 
 # Global camera settings
 detect:
@@ -186,4 +190,3 @@ cameras:
         retain:
           default: 7
 
-version: 0.16-0

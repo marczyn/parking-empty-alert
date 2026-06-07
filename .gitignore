@@ -1,7 +1,8 @@
 # Secrets — NEVER commit real values to git!
 .env
-config/mosquitto/passwd
 config/passwd
+config/mosquitto/passwd
+config/**/passwd
 
 # Note: config/homeassistant/secrets.yaml is tracked in git as a TEMPLATE
 # with placeholder values. setup.sh overwrites it locally with real secrets.

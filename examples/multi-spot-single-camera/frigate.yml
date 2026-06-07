@@ -27,7 +27,6 @@ model:
   labelmap_path: /labelmap/coco-80.txt
 
 ffmpeg:
-  hwaccel_args: preset-vaapi
 
 detect:
   enabled: true
@@ -144,4 +143,3 @@ cameras:
         retain:
           default: 7
 
-version: 0.16-0

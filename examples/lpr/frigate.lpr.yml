@@ -31,7 +31,6 @@ model:
   labelmap_path: /labelmap/coco-80.txt
 
 ffmpeg:
-  hwaccel_args: preset-vaapi
 
 ###############################################################################
 # GenAI: LPR via CodeProject AI
@@ -145,4 +144,3 @@ cameras:
         retain:
           default: 30
 
-version: 0.16-0

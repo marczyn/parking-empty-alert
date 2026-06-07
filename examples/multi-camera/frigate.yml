@@ -23,7 +23,6 @@ detectors:
   #   device: usb
 
 ffmpeg:
-  hwaccel_args: preset-vaapi
 
 detect:
   enabled: true
@@ -101,4 +100,3 @@ cameras:
         coordinates: 0.20,0.30,0.80,0.30,0.80,0.90,0.20,0.90
         objects: [car, truck, motorcycle]
 
-version: 0.16-0

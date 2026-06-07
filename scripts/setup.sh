@@ -37,6 +37,23 @@ if [ ! -f .env ]; then
 
   echo
   echo "════════════════════════════════════════════════════"
+  echo "  STEP 1B: Timezone"
+  echo "════════════════════════════════════════════════════"
+  DEFAULT_TZ=$(cat /etc/timezone 2>/dev/null || echo "UTC")
+  read -r -p "Timezone (IANA format, e.g. Europe/Warsaw, America/New_York) [$DEFAULT_TZ]: " TZ
+  TZ=${TZ:-$DEFAULT_TZ}
+
+  echo
+  echo "════════════════════════════════════════════════════"
+  echo "  STEP 1C: Docker host LAN IP (for HA iframe URLs)"
+  echo "════════════════════════════════════════════════════"
+  # Try to auto-detect primary LAN IP
+  DETECTED_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ip route get 1.1.1.1 2>/dev/null | awk '/src/ {print $7}')
+  read -r -p "Docker host LAN IP (browser-accessible) [$DETECTED_IP]: " DOCKER_HOST_IP
+  DOCKER_HOST_IP=${DOCKER_HOST_IP:-$DETECTED_IP}
+
+  echo
+  echo "════════════════════════════════════════════════════"
   echo "  STEP 2: WhatsApp (CallMeBot — free)"
   echo "════════════════════════════════════════════════════"
   echo "If you do NOT have a CallMeBot APIKEY yet:"
@@ -56,6 +73,7 @@ MQTT_USER=frigate
 MQTT_PASSWORD=$MQTT_PASSWORD
 WHATSAPP_PHONE=$WHATSAPP_PHONE
 WHATSAPP_APIKEY=$WHATSAPP_APIKEY
+TZ=$TZ
 EOF
   chmod 600 .env
   echo "✓ .env created"
@@ -73,6 +91,10 @@ EOF
   # Substitute CAMERA_IP in frigate.yml
   sed -i.bak "s/CAMERA_IP_PLACEHOLDER/$CAMERA_IP/g" config/frigate.yml
   rm -f config/frigate.yml.bak
+
+  # Substitute DOCKER_HOST_IP in HA Lovelace dashboard
+  sed -i.bak "s/DOCKER_HOST_IP/$DOCKER_HOST_IP/g" config/homeassistant/ui-lovelace.yaml
+  rm -f config/homeassistant/ui-lovelace.yaml.bak
 else
   echo "✓ .env already exists (skipping prompts — delete .env to start over)"
 fi

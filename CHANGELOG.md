@@ -12,6 +12,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.2] — 2026-06-07
+
+### Fixed (Round 2 code audit — 8 more gaps)
+
+#### 🔴 Critical
+
+- **`notify.rest` had `method: GET_QUERY` — not a valid HA method.** HA would
+  fail to load on startup. Changed to `method: GET` with `data:` + `message_param_name`
+  which correctly sends parameters as query string.
+
+- **`.gitignore` typo: only `config/mosquitto/passwd` listed but setup.sh
+  creates `config/passwd`.** Real Mosquitto password file was NOT gitignored,
+  could leak on first commit. Added `config/passwd` + `config/**/passwd` glob.
+
+- **`ui-lovelace.yaml` iframe used `http://frigate:5000`** — Docker DNS doesn't
+  resolve from browser. Iframe was broken in both `network_mode: host` and bridge.
+  Changed to `http://DOCKER_HOST_IP:5000` placeholder; setup.sh substitutes the
+  actual host IP.
+
+- **`version: 0.16-0` hardcoded in all 4 Frigate configs.** Frigate stable image
+  is 0.15.x — schema 0.16 would either error or get ignored. Removed `version:`
+  field entirely — Frigate uses image-bundled default.
+
+#### 🟡 Important
+
+- **`TZ: "Europe/Warsaw"` hardcoded** in both `docker-compose.yml` and
+  `examples/lpr/docker-compose.lpr.yml`. Users in other timezones got wrong
+  timestamps in WhatsApp alerts. Now uses `${TZ:-UTC}` with `.env` support;
+  setup.sh auto-detects from host's `/etc/timezone`.
+
+- **`hwaccel_args: preset-vaapi` was the default** in all 4 Frigate configs.
+  Frigate FAILED to start on AMD-only, ARM (RPi), or any host without Intel iGPU.
+  Changed default to CPU (no hwaccel line); commented presets remain for users
+  with compatible hardware, with prominent ⚠️ warning.
+
+- **Mosquitto `log_dest file` filled disk over time** (no log rotation).
+  Switched to `log_dest stdout` only; added Docker `json-file` log driver with
+  `max-size: 10m, max-file: 3` per container.
+
+- **Mosquitto compose was missing `passwd` file mount** — setup.sh created
+  `config/passwd` but it wasn't mounted into the container. MQTT auth never
+  used the generated password. Added bind mount.
+
+#### 🟢 Polish
+
+- **Ports 8554/8555 exposed without explanation.** Added inline comments
+  explaining RTSP restream (VLC viewing) and WebRTC (low-latency preview).
+
+- Added log rotation for Frigate (`50m × 3`) and HA (`50m × 3`) — same as
+  Mosquitto. Prevents Docker logs from growing unbounded.
+
+### Changed
+- setup.sh now asks for **Timezone** (auto-detects from host as default) and
+  **Docker host LAN IP** (auto-detects from `hostname -I`); substitutes
+  `DOCKER_HOST_IP` placeholder in `ui-lovelace.yaml`.
+- `.env.example` includes `TZ` variable with IANA reference link.
+
+[1.3.2]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.2
+
 ## [1.3.1] — 2026-06-07
 
 ### Fixed
@@ -235,7 +294,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.2...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0
