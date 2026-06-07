@@ -1,5 +1,12 @@
 # 🅿️ Parking Empty Alert — Docker Stack
 
+[![Frigate](https://img.shields.io/badge/Frigate-0.16-blue?logo=videocam)](https://frigate.video)
+[![Home Assistant](https://img.shields.io/badge/Home_Assistant-2026.5+-41BDF5?logo=home-assistant&logoColor=white)](https://home-assistant.io)
+[![Reolink](https://img.shields.io/badge/Reolink-any_model-orange)](https://reolink.com)
+[![Docker](https://img.shields.io/badge/Docker-required-2496ED?logo=docker&logoColor=white)](https://docker.com)
+[![WhatsApp](https://img.shields.io/badge/WhatsApp-via_CallMeBot-25D366?logo=whatsapp&logoColor=white)](https://www.callmebot.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+
 **Co to robi:** wysyła **WhatsApp** wiadomość **gdy miejsce parkingowe jest WOLNE** (auto odjechało).
 
 **Hardware:** dowolny komputer/serwer z Dockerem. Brak dodatkowych zakupów.
@@ -7,6 +14,141 @@
 **Niezawodność:** 95-99% (Frigate object tracking z persistence).
 
 **Czas setup:** 30 min pierwszy raz, działa lata.
+
+---
+
+## 📺 Jak to wygląda
+
+### Architektura
+
+```mermaid
+graph LR
+    CAM[📷 Reolink Camera] -->|RTSP sub-stream<br/>360p @ 5fps| FRIGATE
+    CAM -.->|RTSP main-stream<br/>1080p @ 25fps| FRIGATE
+
+    subgraph DOCKER[Docker Host]
+        FRIGATE[🧠 Frigate<br/>YOLOv8 + Zone tracking]
+        MQTT[📡 Mosquitto<br/>MQTT broker]
+        HA[🏠 Home Assistant<br/>Automation]
+        FRIGATE -->|state changes| MQTT
+        MQTT -->|sensor.parking_car| HA
+    end
+
+    HA -->|HTTP GET| CALLMEBOT[☎️ CallMeBot]
+    CALLMEBOT -->|WhatsApp msg| PHONE[📱 Telefon]
+
+    style CAM fill:#FFA500,color:#000
+    style FRIGATE fill:#4CAF50,color:#fff
+    style PHONE fill:#25D366,color:#fff
+    style CALLMEBOT fill:#25D366,color:#fff
+```
+
+### Flow eventu "auto odjechało"
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Car as 🚗 Auto
+    participant Cam as 📷 Reolink
+    participant Frigate as 🧠 Frigate
+    participant HA as 🏠 HA
+    participant Phone as 📱 WhatsApp
+
+    Car->>Cam: odjeżdża z miejsca
+    Cam->>Frigate: RTSP klatka
+    Frigate->>Frigate: YOLOv8 detection
+    Note over Frigate: car count w zone = 0
+    Frigate->>HA: MQTT: sensor.parking_car = 0
+    Note over HA: czekam 2 min<br/>(anti-blink)
+    HA->>HA: stan 'empty' przez 2 min ✓
+    HA->>Phone: WhatsApp via CallMeBot
+    Note over Phone: 🅿️ Miejsce wolne!
+```
+
+### Stany strefy parkingowej
+
+```mermaid
+stateDiagram-v2
+    [*] --> Unknown: start
+    Unknown --> Occupied: car detected
+    Unknown --> Empty: no car for 2min
+
+    Occupied --> Empty_pending: car leaves
+    Empty_pending --> Occupied: car detected again<br/>(false alarm avoided)
+    Empty_pending --> Empty: 2min elapsed
+    Empty --> WhatsApp_sent: 🅿️ alert!
+    WhatsApp_sent --> Occupied: new car arrives
+
+    note right of Empty_pending
+        Anti-blink protection:
+        ignorujemy chwilowy brak
+        (kierowca przemknął)
+    end note
+```
+
+### Przykład UI Frigate (zone editor)
+
+Frigate ma wbudowany graficzny edytor stref — rysujesz **poligon** wprost na klatce z kamery:
+
+```
+┌─────────────────────────────────────────────────┐
+│ Frigate Debug View — camera "parking"           │
+│                                                 │
+│  ╔═══════════════════════════════╗              │
+│  ║   widok z kamery (640×360)    ║              │
+│  ║                                ║              │
+│  ║          ┌─────────┐          ║              │
+│  ║         /          \  ←── zone parking_spot  │
+│  ║        /  ┌─────┐   \         ║              │
+│  ║       /   │ 🚗  │    \ ← car detected ✓     │
+│  ║       │   └─────┘    │        ║              │
+│  ║       \              /        ║              │
+│  ║        \────────────/         ║              │
+│  ║                                ║              │
+│  ╚═══════════════════════════════╝              │
+│                                                 │
+│  [⚙ Settings] [📐 Edit Zones] [📊 Debug]       │
+│                                                 │
+│  Detected: 1 car @ 0.94 confidence              │
+│  Zone "parking_spot": OCCUPIED                  │
+└─────────────────────────────────────────────────┘
+```
+
+**🎬 Live demo Frigate UI:** https://demo.frigate.video (oficjalne demo, działa w przeglądarce)
+
+### Przykład WhatsApp alertu na telefonie
+
+```
+┌────────────────────────────────────┐
+│  WhatsApp                          │
+├────────────────────────────────────┤
+│                                    │
+│  🅿️ Miejsce parkingowe WOLNE!     │
+│  Możesz parkować — zwolniło się    │
+│  2 min temu.                       │
+│  Czas: 14:32                       │
+│                                    │
+│                          14:32 ✓✓  │
+│                                    │
+└────────────────────────────────────┘
+```
+
+### Home Assistant — entities po setup
+
+Frigate auto-wykryje kamerę i utworzy w HA:
+
+| Entity | Typ | Co pokazuje |
+|---|---|---|
+| `sensor.parking_parking_spot_car` | sensor | licznik aut w strefie (0, 1, 2...) — **używany w automation** |
+| `binary_sensor.parking_motion` | binary | true gdy jakikolwiek ruch w kadrze |
+| `binary_sensor.parking_person_occupied` | binary | true gdy człowiek w kadrze |
+| `binary_sensor.parking_car_occupied` | binary | true gdy auto w kadrze (cały kadr) |
+| `camera.parking` | camera | live podgląd MJPEG |
+| `camera.parking_person` | camera | ostatni snapshot z eventem person |
+| `image.parking_parking_spot` | image | snapshot strefy z bounding boxami |
+| `switch.parking_detect` | switch | włącz/wyłącz detection |
+| `switch.parking_recordings` | switch | włącz/wyłącz nagrywanie |
+| `update.parking_camera_firmware` | update | (jeśli kamera obsługuje update via ONVIF) |
 
 ---
 
