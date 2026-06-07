@@ -63,8 +63,7 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/mosquitto/run
 RUN mkdir -p /etc/s6-overlay/s6-rc.d/homeassistant && \
     echo "longrun" > /etc/s6-overlay/s6-rc.d/homeassistant/type && \
     cat > /etc/s6-overlay/s6-rc.d/homeassistant/run <<'EOF'
-#!/usr/bin/with-contenv bash
-# Wait for mosquitto to be ready
+#!/bin/sh
 sleep 5
 exec /opt/ha/bin/hass --config /opt/ha-config
 EOF
@@ -160,7 +159,7 @@ EOF
 RUN mkdir -p /etc/s6-overlay/s6-rc.d/init-env && \
     echo "oneshot" > /etc/s6-overlay/s6-rc.d/init-env/type && \
     cat > /etc/s6-overlay/s6-rc.d/init-env/up <<'EOF'
-#!/usr/bin/with-contenv bash
+#!/bin/sh
 # Substitute env vars in HA config
 if [ -f /opt/ha-config/configuration.yaml ]; then
   sed -i "s/PLACEHOLDER_PHONE/${WHATSAPP_PHONE:-48501234567}/g" /opt/ha-config/configuration.yaml
