@@ -60,6 +60,16 @@
         message: "🚗 Garage FREE. Time: {{ now().strftime('%H:%M') }}"
 
 # ─── BONUS: hourly "how many spots free now" summary ───
+#
+# ⚠️ CallMeBot rate limit is 1 WhatsApp message per minute per phone.
+# Hourly summary + per-spot alerts can collide:
+#   - 3 cars leave within 1 min → 3 alerts + summary = 4 messages
+#   - CallMeBot drops messages 2-4 silently
+#
+# Mitigations:
+#   - Comment out parking_summary_hourly if you also want per-spot alerts
+#   - Or use HA Companion App push instead (no rate limit)
+#   - Or use Telegram (no rate limit, see USER_GUIDE.md Section 9)
 - id: parking_summary_hourly
   alias: "📊 Hourly parking summary"
   trigger:
