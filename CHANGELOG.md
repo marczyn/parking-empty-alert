@@ -8,10 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- NAS deployment guides (Synology, UnRAID, QNAP)
 - Telegram, Pushover, Gotify notification templates
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
+
+## [1.3.0] — 2026-06-07
+
+### Added
+
+#### NAS deployment guides
+- `docs/nas/README.md` — NAS comparison + minimum specs + compatible model list + universal considerations (storage paths, SMR vs CMR, RAID, power, backups)
+- `docs/nas/synology.md` — Full DSM 7.2+ Container Manager guide:
+  - SSH + docker compose method (recommended)
+  - Container Manager UI method (no-SSH alternative)
+  - VAAPI hardware acceleration setup
+  - Coral USB TPU integration
+  - Reverse proxy with Let's Encrypt
+  - Hyper Backup + Snapshot Replication
+  - Synology-specific troubleshooting
+- `docs/nas/unraid.md` — UnRAID 6.12+/7.0 Compose Manager guide:
+  - Compose Manager plugin install + setup
+  - Storage strategy (cache vs array for recordings)
+  - NVIDIA Driver plugin integration
+  - Coral USB TPU setup
+  - SWAG reverse proxy + Let's Encrypt
+  - CA Backup/Restore Appdata
+  - NVIDIA + Intel iGPU + AMD considerations
+- `docs/nas/qnap.md` — QNAP QTS 5.x Container Station guide:
+  - SSH method (recommended due to UI YAML quirks)
+  - Container Station UI method
+  - VAAPI + Coral setup
+  - HBS3 backup strategy
+  - Nginx Proxy Manager for HTTPS
+  - QNAP-specific notification integration
+
+README documentation table updated with NAS guides link.
 
 ## [1.2.0] — 2026-06-07
 
@@ -138,6 +169,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

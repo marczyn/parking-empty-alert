@@ -29,6 +29,7 @@
 | [Multi-spot single-camera](examples/multi-spot-single-camera/README.md) | For 5+ spots visible from ONE wide-angle camera |
 | [License Plate Recognition (LPR)](examples/lpr/README.md) | Owner-specific alerts, blacklist plates, free self-hosted |
 | [Non-Reolink camera templates](examples/cameras/README.md) | Hikvision, Dahua, UniFi Protect, TP-Link Tapo, generic ONVIF |
+| [NAS deployment guides](docs/nas/README.md) | Synology DSM, UnRAID, QNAP — full step-by-step |
 | [Frigate documentation](https://docs.frigate.video) | Upstream Frigate features |
 | [Home Assistant documentation](https://www.home-assistant.io/docs/) | Upstream HA features |
 
