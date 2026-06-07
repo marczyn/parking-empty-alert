@@ -39,6 +39,10 @@ services:
       # Pass credentials into container so healthcheck can authenticate
       MQTT_USER: "${MQTT_USER}"
       MQTT_PASSWORD: "${MQTT_PASSWORD}"
+    # Resource limits — Mosquitto is lightweight, 256MB is plenty
+    mem_limit: 256m
+    mem_reservation: 64m
+    cpus: 0.5
     healthcheck:
       # mosquitto_pub returns 0 on success, non-zero on connection failure
       # $$VAR escapes compose variable interpolation; resolves to $VAR at runtime
@@ -59,6 +63,11 @@ services:
       mosquitto:
         condition: service_healthy
     shm_size: 256mb          # increase to 512mb if >1 camera
+    # Resource limits — Frigate uses ~600MB-1.5GB depending on cameras
+    # If you have >2 cameras, bump mem_limit to 2g+
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: 4.0          # cap to keep host responsive
     # Hardware device passthrough — uncomment matching block(s) for your setup:
     #
     # Intel iGPU (VAAPI hardware accel):
@@ -120,6 +129,10 @@ services:
     # `docker compose -f docker-compose.yml -f docker-compose.macwin.yml up -d`
     network_mode: host
     privileged: true
+    # Resource limits — HA uses ~500MB-1GB typically; bump for many integrations
+    mem_limit: 1500m
+    mem_reservation: 256m
+    cpus: 2.0
     environment:
       # Timezone — defaults to UTC if not set. Override via .env (TZ=America/New_York etc.)
       # IANA timezone list: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones

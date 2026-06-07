@@ -15,6 +15,11 @@ if ! command -v docker &>/dev/null; then
   echo "❌ Docker not installed. Install: https://docs.docker.com/get-docker/"
   exit 1
 fi
+
+# Install git pre-commit hook (one-shot — idempotent)
+if [ -d .git ] && [ ! -x .git/hooks/pre-commit ]; then
+  bash scripts/install-git-hooks.sh 2>/dev/null || true
+fi
 if ! docker compose version &>/dev/null && ! docker-compose version &>/dev/null; then
   echo "❌ Docker Compose not available. Update Docker."
   exit 1
@@ -31,7 +36,17 @@ if [ ! -f .env ]; then
   echo "════════════════════════════════════════════════════"
   read -r -p "Reolink camera IP (e.g., 192.168.1.100): " CAMERA_IP
   read -r -p "Reolink username (create a new 'frigate' user in Reolink UI with Viewer permission): " RTSP_USER
-  read -r -s -p "Password for this account: " RTSP_PASSWORD; echo
+
+  # Password with confirmation — avoid silent typos
+  while true; do
+    read -r -s -p "Password for this account: " RTSP_PASSWORD; echo
+    read -r -s -p "Confirm password: " RTSP_PASSWORD2; echo
+    if [ "$RTSP_PASSWORD" = "$RTSP_PASSWORD2" ] && [ -n "$RTSP_PASSWORD" ]; then
+      break
+    fi
+    echo "⚠ Passwords don't match or empty. Try again."
+  done
+  unset RTSP_PASSWORD2
   echo
   MQTT_PASSWORD=$(openssl rand -base64 24 2>/dev/null | tr -d '/+=' | head -c 20 || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 20)
 
@@ -47,8 +62,13 @@ if [ ! -f .env ]; then
   echo "════════════════════════════════════════════════════"
   echo "  STEP 1C: Docker host LAN IP (for HA iframe URLs)"
   echo "════════════════════════════════════════════════════"
-  # Try to auto-detect primary LAN IP
-  DETECTED_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ip route get 1.1.1.1 2>/dev/null | awk '/src/ {print $7}')
+  # Auto-detect primary LAN IP — pick the IP that reaches the default gateway,
+  # which avoids docker0 / br- bridge networks (172.16.0.0/12 by default).
+  DETECTED_IP=$(ip route get 1.1.1.1 2>/dev/null | awk '/src/ {for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}' | head -1)
+  # Fallback: filter hostname -I for non-Docker ranges
+  if [ -z "$DETECTED_IP" ]; then
+    DETECTED_IP=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -vE '^(172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|127\.)' | head -1)
+  fi
   read -r -p "Docker host LAN IP (browser-accessible) [$DETECTED_IP]: " DOCKER_HOST_IP
   DOCKER_HOST_IP=${DOCKER_HOST_IP:-$DETECTED_IP}
 

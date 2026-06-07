@@ -150,6 +150,9 @@ cameras:
         motorcycle:
           min_score: 0.5
           threshold: 0.7
+        bus:
+          min_score: 0.5
+          threshold: 0.7
 
     ###############################################################################
     # ZONE: parking_spot

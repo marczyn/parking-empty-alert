@@ -12,6 +12,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.5] — 2026-06-07
+
+### Fixed (Round 5 code audit — 8 more gaps)
+
+#### 🔴 Critical
+
+- **INSTALLATION.md + README told users to enter `http://frigate:5000` for HA
+  Frigate integration** — but HA in `network_mode: host` (Linux default) cannot
+  resolve Docker DNS names. Integration setup would FAIL silently with "cannot
+  connect" — users couldn't finish setup. Documented both URLs (host mode =
+  `localhost:5000`, bridge mode = `frigate:5000`) with a clear table.
+
+- **`setup.sh` DOCKER_HOST_IP auto-detection used `hostname -I | awk '{print $1}'`** —
+  on hosts with multiple interfaces, could pick a Docker bridge IP (172.17.0.1)
+  instead of LAN IP. Lovelace iframe URL would be broken. Switched to
+  `ip route get 1.1.1.1` (asks kernel which IP reaches the default gateway —
+  always LAN); fallback filters Docker/link-local ranges from `hostname -I`.
+
+- **No protection against committing real secrets to git.** User could
+  `git add -A && git commit && git push` real `.env`, real Mosquitto passwd,
+  or modified secrets.yaml. Added:
+  - `scripts/install-git-hooks.sh` — installs pre-commit hook
+  - Hook blocks: `.env` commits, `config/passwd` commits, `secrets.yaml` with
+    non-placeholder values, CallMeBot APIKEY look-alikes, phone number look-alikes
+  - setup.sh auto-installs hook on first run
+
+#### 🟡 Important
+
+- **`setup.sh` password input had no confirmation** — silent typos in RTSP
+  password meant Frigate would fail to connect days later. Added confirm
+  re-prompt loop until passwords match.
+
+- **Camera templates (`examples/cameras/*.yml`) were SNIPPETS but looked like
+  full configs.** Users might replace `config/frigate.yml` with a vendor
+  template → lose zones/objects/detect settings. Updated README with explicit
+  ⚠️ warning + visual `diff` example showing the exact change.
+
+- **No resource limits in `docker-compose.yml`** — a Frigate runaway could
+  consume all host RAM/CPU, taking down HA + Mosquitto with it. Added:
+  - Mosquitto: 256m memory, 0.5 CPU
+  - Frigate: 2g memory, 4.0 CPU
+  - HA: 1.5g memory, 2.0 CPU
+
+- **Frigate config tracked `bus` but had no `bus:` filter** — could cause schema
+  validation warnings. Added matching filter with same thresholds as truck.
+
+- **No `CODEOWNERS` file** — issues and PRs had no auto-assigned reviewer.
+  Added with file-pattern routing.
+
+### Added
+- `scripts/install-git-hooks.sh` — git pre-commit hook installer
+- `.github/CODEOWNERS` — review auto-assignment
+
+[1.3.5]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.5
+
 ## [1.3.4] — 2026-06-07
 
 ### Fixed (Round 4 code audit — 11 more gaps)
@@ -392,7 +447,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.4...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.5...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

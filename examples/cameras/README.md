@@ -22,13 +22,35 @@ This project defaults to Reolink, but **any RTSP camera** works. This directory 
 
 ## How to use a template
 
+⚠️ **These templates are SNIPPETS** — they show only the `cameras.parking.ffmpeg.inputs`
+block that differs per vendor. They are **NOT** standalone configs. Do NOT replace
+`config/frigate.yml` with a vendor template file directly.
+
+**Correct procedure:**
+
 1. Find your camera brand in the table above → note the template name
-2. Copy the corresponding `.yml` file from this directory
+2. Open the template `.yml` file — find the `ffmpeg.inputs:` block
 3. Open `config/frigate.yml`
-4. Find the `cameras:` section
-5. **Replace ONLY the `ffmpeg.inputs` paths** with values from the template
-6. Keep everything else (zones, objects, snapshots) — they're camera-agnostic
-7. Restart Frigate: `docker compose restart frigate`
+4. Inside `cameras.parking.ffmpeg.inputs:`, **REPLACE** the existing list with
+   the URLs from your template
+5. Keep everything else in `config/frigate.yml` unchanged (zones, objects, detect
+   resolution, snapshots, record settings) — they apply to any camera
+6. Restart Frigate: `docker compose restart frigate`
+
+**Example diff** (Reolink → Hikvision):
+
+```diff
+  cameras:
+    parking:
+      ffmpeg:
+        inputs:
+-         - path: rtsp://USER:PASS@192.168.1.100:554/h264Preview_01_sub
++         - path: rtsp://USER:PASS@192.168.1.100:554/Streaming/Channels/102
+            roles: [detect]
+-         - path: rtsp://USER:PASS@192.168.1.100:554/h264Preview_01_main
++         - path: rtsp://USER:PASS@192.168.1.100:554/Streaming/Channels/101
+            roles: [record]
+```
 
 ## Universal tips for any camera
 

@@ -313,7 +313,9 @@ This is the **critical** step — you define exactly where the car should be par
 1. Open **http://localhost:8123**
 2. First time: create admin account (any login/password)
 3. **Settings → Devices & Services → Add Integration → "Frigate"**
-   - URL: `http://frigate:5000`
+   - URL:
+     - Linux host mode: `http://localhost:5000`
+     - Docker Desktop / bridge: `http://frigate:5000`
    - (Other options default)
 4. Frigate will auto-discover the camera, zone, objects — about 10 entities will appear, including:
    - `sensor.parking_parking_spot_car` ← **this one** is used in automation

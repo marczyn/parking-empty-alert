@@ -473,10 +473,15 @@ Wait ~10 seconds, refresh Frigate UI → Debug view → you should see the **gre
 3. **Settings → Devices & Services → + Add Integration**
 4. Search for `Frigate`
 5. Click **Frigate**
-6. **Configure:**
-   - URL: `http://frigate:5000`
-   - Leave other options default
-7. **Submit**
+6. **Configure URL** — ⚠️ **depends on Docker mode:**
+
+   | Compose mode | HA network | URL to enter |
+   |---|---|---|
+   | Linux (default `docker-compose.yml`) | `host` | `http://localhost:5000` |
+   | Docker Desktop (`+ docker-compose.macwin.yml`) | `bridge` | `http://frigate:5000` |
+
+7. Leave other options default
+8. **Submit**
 
 HA discovers the camera, zone, all entities. ~10 new entities appear.
 
@@ -592,7 +597,9 @@ Both should succeed. If ping fails — network issue between container and camer
 
 **Cause:** HA can't reach Frigate.
 
-**Fix:** Make sure HA uses `http://frigate:5000` (Docker DNS name) — NOT `http://localhost:5000` (different container).
+**Fix:** Check which HA network mode you're using:
+- **Linux host mode (default):** use `http://localhost:5000` — HA shares host's network
+- **Docker Desktop / bridge mode:** use `http://frigate:5000` — Docker DNS resolves between containers in same compose project
 
 ### ❌ WhatsApp test fails: "APIKEY invalid"
 
