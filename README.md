@@ -17,6 +17,18 @@
 
 ---
 
+## 📚 Documentation
+
+| Document | When to read |
+|---|---|
+| **[Installation Guide](docs/INSTALLATION.md)** | First-time setup — step-by-step with troubleshooting |
+| **[User Guide](docs/USER_GUIDE.md)** | After install — daily ops, tuning, advanced features, FAQ |
+| [Multi-camera example](examples/multi-camera/README.md) | For 2+ parking spots |
+| [Frigate documentation](https://docs.frigate.video) | Upstream Frigate features |
+| [Home Assistant documentation](https://www.home-assistant.io/docs/) | Upstream HA features |
+
+---
+
 ## 📺 How it looks
 
 ### Architecture
