@@ -1,0 +1,191 @@
+###############################################################################
+# Lovelace Dashboard — Multi-spot single-camera
+# Grid view showing all 5 spots at once + summary + live camera
+###############################################################################
+
+title: Parking Lot
+views:
+
+  - title: Overview
+    path: overview
+    icon: mdi:parking
+    cards:
+
+      # ─── Summary hero card ───
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ## 🅿️ Parking Lot Status
+
+          - type: glance
+            title: ""
+            columns: 3
+            entities:
+              - entity: sensor.parking_free_count
+                name: Free
+              - entity: sensor.parking_occupancy_pct
+                name: Occupied
+              - entity: sensor.parking_first_free_spot
+                name: Suggested
+
+      # ─── Grid of 5 spots ───
+      - type: grid
+        columns: 5
+        square: true
+        cards:
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_1_car
+                state: "0"
+            card:
+              type: markdown
+              content: |
+                ## ✅ 1
+                FREE
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_1_car
+                state_not: "0"
+            card:
+              type: markdown
+              content: |
+                ## 🚗 1
+                taken
+
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_2_car
+                state: "0"
+            card:
+              type: markdown
+              content: |
+                ## ✅ 2
+                FREE
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_2_car
+                state_not: "0"
+            card:
+              type: markdown
+              content: |
+                ## 🚗 2
+                taken
+
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_3_car
+                state: "0"
+            card:
+              type: markdown
+              content: |
+                ## ✅ 3
+                FREE
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_3_car
+                state_not: "0"
+            card:
+              type: markdown
+              content: |
+                ## 🚗 3
+                taken
+
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_4_car
+                state: "0"
+            card:
+              type: markdown
+              content: |
+                ## ✅ 4
+                FREE
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_4_car
+                state_not: "0"
+            card:
+              type: markdown
+              content: |
+                ## 🚗 4
+                taken
+
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_5_car
+                state: "0"
+            card:
+              type: markdown
+              content: |
+                ## ✅ 5
+                FREE
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_lot_spot_5_car
+                state_not: "0"
+            card:
+              type: markdown
+              content: |
+                ## 🚗 5
+                taken
+
+      # ─── Live camera ───
+      - type: picture-entity
+        entity: camera.parking_lot
+        camera_view: live
+        show_state: false
+        show_name: true
+        name: Live wide-angle view
+
+      # ─── History plot for free count ───
+      - type: history-graph
+        title: Last 24h — free spots count
+        hours_to_show: 24
+        entities:
+          - sensor.parking_free_count
+
+  - title: Spots detail
+    path: details
+    icon: mdi:car-multiple
+    cards:
+      - type: entities
+        title: All spots
+        entities:
+          - entity: sensor.parking_lot_spot_1_car
+            name: Spot 1
+          - entity: sensor.parking_lot_spot_2_car
+            name: Spot 2
+          - entity: sensor.parking_lot_spot_3_car
+            name: Spot 3
+          - entity: sensor.parking_lot_spot_4_car
+            name: Spot 4
+          - entity: sensor.parking_lot_spot_5_car
+            name: Spot 5
+
+      - type: history-graph
+        title: 24h occupancy per spot
+        hours_to_show: 24
+        entities:
+          - sensor.parking_lot_spot_1_car
+          - sensor.parking_lot_spot_2_car
+          - sensor.parking_lot_spot_3_car
+          - sensor.parking_lot_spot_4_car
+          - sensor.parking_lot_spot_5_car
+
+  - title: Diagnostics
+    path: diagnostics
+    icon: mdi:chart-line
+    cards:
+      - type: entities
+        title: System status
+        entities:
+          - entity: automation.parking_summary_change
+            name: Summary automation
+          - entity: automation.frigate_offline_watchdog
+            name: Frigate offline watchdog
+          - entity: binary_sensor.parking_lot_motion
+            name: Camera motion
+      - type: iframe
+        title: Frigate UI
+        url: http://frigate:5000
+        aspect_ratio: 75%

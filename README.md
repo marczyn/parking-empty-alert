@@ -25,7 +25,9 @@
 |---|---|
 | **[Installation Guide](docs/INSTALLATION.md)** | First-time setup — step-by-step with troubleshooting |
 | **[User Guide](docs/USER_GUIDE.md)** | After install — daily ops, tuning, advanced features, FAQ |
-| [Multi-camera example](examples/multi-camera/README.md) | For 2+ parking spots |
+| [Multi-camera example](examples/multi-camera/README.md) | For 2+ parking spots, each on a separate camera |
+| [Multi-spot single-camera](examples/multi-spot-single-camera/README.md) | For 5+ spots visible from ONE wide-angle camera |
+| [License Plate Recognition (LPR)](examples/lpr/README.md) | Owner-specific alerts, blacklist plates, free self-hosted |
 | [Frigate documentation](https://docs.frigate.video) | Upstream Frigate features |
 | [Home Assistant documentation](https://www.home-assistant.io/docs/) | Upstream HA features |
 

@@ -1,0 +1,143 @@
+###############################################################################
+# Multi-spot single-camera automations
+# 5 per-spot alerts + 1 summary alert + Frigate watchdog
+###############################################################################
+
+# ─── PARKING SPOT 1 → free ───
+- id: parking_spot_1_free
+  alias: "🅿️ Spot 1 → free"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_lot_spot_1_car
+      below: 1
+      for: {minutes: 2}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🅿️ Spot 1 FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── PARKING SPOT 2 → free ───
+- id: parking_spot_2_free
+  alias: "🅿️ Spot 2 → free"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_lot_spot_2_car
+      below: 1
+      for: {minutes: 2}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🅿️ Spot 2 FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── PARKING SPOT 3 → free ───
+- id: parking_spot_3_free
+  alias: "🅿️ Spot 3 → free"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_lot_spot_3_car
+      below: 1
+      for: {minutes: 2}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🅿️ Spot 3 FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── PARKING SPOT 4 → free ───
+- id: parking_spot_4_free
+  alias: "🅿️ Spot 4 → free"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_lot_spot_4_car
+      below: 1
+      for: {minutes: 2}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🅿️ Spot 4 FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── PARKING SPOT 5 → free ───
+- id: parking_spot_5_free
+  alias: "🅿️ Spot 5 → free"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_lot_spot_5_car
+      below: 1
+      for: {minutes: 2}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🅿️ Spot 5 FREE. Time: {{ now().strftime('%H:%M') }}"
+
+###############################################################################
+# SUMMARY: alert when overall occupancy changes
+# Sends 1 WhatsApp showing all 5 spots' status at once.
+###############################################################################
+- id: parking_summary_change
+  alias: "📊 Parking summary on occupancy change"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: sensor.parking_free_count
+      for: {minutes: 1}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          📊 Parking: {{ states('sensor.parking_free_count') }}/5 free
+          {% for n in range(1, 6) -%}
+          Spot {{n}}: {{ "✅" if states('sensor.parking_lot_spot_' ~ n ~ '_car') == '0' else "🚗" }}
+          {% endfor -%}
+          Time: {{ now().strftime('%H:%M') }}
+
+###############################################################################
+# HOURLY summary (optional — disabled by default to avoid spam)
+###############################################################################
+# - id: parking_summary_hourly
+#   alias: "📊 Hourly parking summary"
+#   trigger:
+#     - platform: time_pattern
+#       hours: "*"
+#       minutes: 0
+#   action:
+#     - service: notify.whatsapp_parking
+#       data:
+#         message: >
+#           📊 {{ now().strftime('%H:%M') }} Parking: {{ states('sensor.parking_free_count') }}/5 free
+
+###############################################################################
+# WATCHDOG: Frigate offline
+###############################################################################
+- id: frigate_offline_watchdog
+  alias: "⚠️ Frigate offline watchdog"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.parking_lot_motion
+      to: "unavailable"
+      for: {minutes: 10}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ⚠️ Frigate offline >10 min! AI detection stopped.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}
+
+- id: frigate_recovered_watchdog
+  alias: "✅ Frigate recovered"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.parking_lot_motion
+      from: "unavailable"
+      for: {minutes: 1}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ✅ Frigate back online.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}

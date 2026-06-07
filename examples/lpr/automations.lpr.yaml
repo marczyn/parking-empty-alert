@@ -1,0 +1,119 @@
+###############################################################################
+# LPR-aware automations
+#
+# Replace your config/homeassistant/automations.yaml with this file (or merge).
+#
+# Behavior:
+#   - If detected plate == owner_plate → suppress "spot free" alert
+#   - If detected plate ∈ blacklist_plates → URGENT alert (no 2-min delay)
+#   - Otherwise → standard "spot free" alert after 2 min
+###############################################################################
+
+###############################################################################
+# AUTOMATION: 🅿️ Parking spot free → WhatsApp (with owner suppression)
+###############################################################################
+- id: parking_spot_free_alert_with_lpr
+  alias: "🅿️ Parking spot empty → WhatsApp (LPR-aware)"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_parking_spot_car
+      below: 1
+      for:
+        minutes: 2
+  condition:
+    # Suppress alert if the last detected plate matches owner_plate
+    - condition: template
+      value_template: >
+        {% set last_plate = states('sensor.parking_last_plate') | upper | replace(' ', '') %}
+        {% set owners = (states('input_text.owner_plates') or '') | upper | replace(' ', '') %}
+        {% set owner_list = owners.split(',') %}
+        {{ last_plate not in owner_list }}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          🅿️ Parking spot FREE!
+          Last car plate: {{ states('sensor.parking_last_plate') | default('unknown', true) }}
+          Time: {{ now().strftime('%H:%M') }}
+
+###############################################################################
+# AUTOMATION: 🚨 URGENT — blacklist plate detected on spot exit
+###############################################################################
+- id: parking_blacklist_alert
+  alias: "🚨 BLACKLIST plate detected leaving"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: sensor.parking_last_plate
+  condition:
+    - condition: template
+      value_template: >
+        {% set last_plate = states('sensor.parking_last_plate') | upper | replace(' ', '') %}
+        {% set blacklist = (states('input_text.blacklist_plates') or '') | upper | replace(' ', '') %}
+        {% set blacklist_list = blacklist.split(',') %}
+        {{ last_plate in blacklist_list and last_plate != '' }}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          🚨🚨🚨 ALERT!
+          Blacklisted plate detected: {{ states('sensor.parking_last_plate') }}
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+
+###############################################################################
+# AUTOMATION: 📝 Log every plate to HA logbook
+###############################################################################
+- id: parking_log_all_plates
+  alias: "📝 Log every detected plate"
+  mode: parallel
+  max: 10
+  trigger:
+    - platform: state
+      entity_id: sensor.parking_last_plate
+  condition:
+    - condition: template
+      value_template: "{{ trigger.to_state.state not in ['unknown', 'unavailable', ''] }}"
+  action:
+    - service: logbook.log
+      data:
+        name: "Parking LPR"
+        message: >
+          Detected plate {{ states('sensor.parking_last_plate') }}
+          at {{ now().strftime('%H:%M:%S') }}
+        entity_id: sensor.parking_parking_spot_car
+
+###############################################################################
+# WATCHDOG: Frigate offline detection (kept from base)
+###############################################################################
+- id: frigate_offline_watchdog
+  alias: "⚠️ Frigate offline watchdog"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.parking_motion
+      to: "unavailable"
+      for:
+        minutes: 10
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ⚠️ Frigate offline >10 min! AI detection stopped.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}
+
+- id: frigate_recovered_watchdog
+  alias: "✅ Frigate recovered"
+  mode: single
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.parking_motion
+      from: "unavailable"
+      for:
+        minutes: 1
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ✅ Frigate back online.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}

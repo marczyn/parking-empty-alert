@@ -1,0 +1,57 @@
+###############################################################################
+# Docker Compose override for License Plate Recognition (LPR)
+#
+# Adds CodeProject AI server (free, self-hosted ALPR) to the stack.
+# Frigate forwards detected car snapshots to CodeProject AI for plate OCR.
+#
+# Use:
+#   docker compose -f docker-compose.yml -f examples/lpr/docker-compose.lpr.yml up -d
+#
+# After install, enable the License Plate Reader module via the web UI:
+#   http://localhost:32168
+###############################################################################
+
+services:
+
+  # ─────────────────────────────────────────────────────────────
+  # CodeProject AI — local AI server with ALPR module
+  # ─────────────────────────────────────────────────────────────
+  codeproject-ai:
+    image: codeproject/ai-server:cuda12
+    # If you have no NVIDIA GPU, use the CPU-only image instead:
+    # image: codeproject/ai-server:latest
+    container_name: codeproject-ai
+    restart: always
+    ports:
+      - "32168:32168"
+    volumes:
+      - codeproject-ai-data:/etc/codeproject/ai
+      - codeproject-ai-models:/app/modules/ALPR/paddleocr
+    environment:
+      TZ: "Europe/Warsaw"
+    # Uncomment if you have NVIDIA GPU:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:32168/v1/status/ping || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Frigate needs to know how to reach CodeProject AI
+  frigate:
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      codeproject-ai:
+        condition: service_healthy
+
+volumes:
+  codeproject-ai-data:
+  codeproject-ai-models:

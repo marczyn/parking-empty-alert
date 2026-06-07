@@ -8,13 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- License plate recognition (LPR) for owner-specific alerts
-- Multi-spot single-camera support (1 camera, N zones)
 - Non-Reolink camera templates (Hikvision, Dahua, generic ONVIF)
 - NAS deployment guides (Synology, UnRAID, QNAP)
 - Telegram, Pushover, Gotify notification templates
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
+
+## [1.1.0] — 2026-06-07
+
+### Added
+
+#### License Plate Recognition (LPR)
+- `examples/lpr/` — full LPR setup using CodeProject AI (free, self-hosted)
+- `docker-compose.lpr.yml` override adds 4th container (codeproject-ai)
+- `frigate.lpr.yml` enables Frigate LPR + genai integration
+- `automations.lpr.yaml` with 3 LPR-aware automations:
+  - Suppress alerts for owner's car (via `owner_plates` input_text)
+  - URGENT WhatsApp for blacklist plates (via `blacklist_plates` input_text)
+  - Log every detected plate to HA logbook
+- Multi-owner support (comma-separated `owner_plates`)
+- Fuzzy matching guidance for OCR error tolerance
+- Documentation: privacy/GDPR considerations, hardware sizing, troubleshooting
+
+#### Multi-spot single-camera support
+- `examples/multi-spot-single-camera/` — 1 wide-angle camera, N zones
+- `frigate.yml` template with 5 example zones + higher resolution detect (1280×720)
+- `automations.yaml` with 5 per-spot alerts + occupancy-change summary
+- `template_sensors.yaml` with derived sensors:
+  - `sensor.parking_free_count` (0-5 free)
+  - `sensor.parking_occupancy_pct` (0-100%)
+  - `sensor.parking_first_free_spot` (leftmost free spot number)
+- `ui-lovelace.yaml` with 3 views:
+  - Overview with 5-spot grid + summary glance + live camera
+  - Spots detail with per-spot history graph
+  - Diagnostics with automation status + Frigate iframe
+- Camera placement guide (FoV recommendations for 3-15 spots)
+- Comparison table: when to use multi-camera vs multi-spot single-camera
+
+### Changed
+- CHANGELOG.md — moved LPR + multi-spot from Planned to 1.1.0
+
+[1.1.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.1.0
 
 ## [1.0.0] — 2026-06-07
 
