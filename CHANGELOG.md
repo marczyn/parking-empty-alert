@@ -12,6 +12,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.8] — 2026-06-07
+
+### Fixed (Round 8 code audit — 8 more gaps)
+
+#### 🔴 Critical
+
+- **v1.3.7 placeholder regex was DEAD CODE.** The pattern matched exact
+  `change_this`, but `.env.example` ships with `change_this_password` (longer).
+  Anyone running `cp .env.example .env && bash scripts/setup.sh` got past the
+  validation with fake credentials. Replaced with per-key case statement using
+  prefix matching (`change_this*`) — now actually catches placeholders.
+
+- **`examples/multi-spot-single-camera/ui-lovelace.yaml` had `DOCKER_HOST_IP`
+  placeholder** that setup.sh never substituted (only base ui-lovelace.yaml was
+  in scope). Users adopting multi-spot got literal `DOCKER_HOST_IP` string in
+  iframe URL → 404s. Extended setup.sh to substitute all dashboard files.
+
+#### 🟡 Important
+
+- **`${var,,}` lowercase substitution requires bash 4.0+** — macOS ships with
+  bash 3.2 (last GPL2 version). Setup.sh crashed for any macOS user without
+  homebrew bash. Replaced with `tr '[:upper:]' '[:lower:]'` (POSIX-compatible).
+
+- **macOS `/etc/timezone` doesn't exist** — defaulted to UTC for every macOS
+  user. Now falls back to reading `readlink /etc/localtime` + extracting
+  zoneinfo path (e.g., `America/New_York`).
+
+- **Frigate `genai: provider: openai`** with custom `base_url` for CodeProject
+  AI is experimental, not officially supported. Added prominent ⚠️ warning
+  + 3 alternative paths (Frigate+, HA Plate Recognizer, wait for 0.17 native
+  support).
+
+#### 🟢 Polish
+
+- Frigate `logger.default` was `info` (~10MB logs/day per camera). Changed to
+  `warning` (production default); commented opt-in for debugging.
+- Mosquitto `max_connections -1` (unlimited) → `100`. Real usage is ~5
+  connections; cap prevents DoS surface if MQTT exposed beyond LAN.
+
+[1.3.8]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.8
+
 ## [1.3.7] — 2026-06-07
 
 ### Fixed (Round 7 code audit — 7 more gaps)
@@ -530,7 +571,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.7...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.8...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

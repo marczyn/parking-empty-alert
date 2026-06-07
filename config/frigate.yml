@@ -66,12 +66,15 @@ detect:
     max_frames:
       default: 0     # 0 = forever — CRITICAL for "car parked for 8h"
 
-# Logger (useful for debugging)
+# Logger — 'warning' is recommended for production (less disk I/O, fewer rotated logs)
+# Switch 'default' to 'info' or 'debug' temporarily when troubleshooting
 logger:
-  default: info
+  default: warning
   logs:
     frigate.video: warning
     frigate.object_detection: warning
+    # Uncomment for verbose troubleshooting:
+    # frigate: info
 
 # Event snapshots (cars entering/leaving)
 snapshots:

@@ -22,12 +22,39 @@ if [ -d .git ] && [ ! -x .git/hooks/pre-commit ]; then
 fi
 
 # Reject placeholder values from .env.example — they always indicate the user
-# forgot to edit .env before running setup.sh
+# forgot to edit .env before running setup.sh.
+# Check each suspicious key separately for robust pattern matching.
 if [ -f .env ]; then
-  if grep -qE '^(RTSP_PASSWORD|WHATSAPP_PHONE|WHATSAPP_APIKEY)=(change_this|48501234567|1234567)$' .env; then
-    echo "❌ .env contains placeholder values from .env.example."
-    echo "   Please edit .env with your real values, OR delete .env"
-    echo "   to let setup.sh ask interactively."
+  PLACEHOLDER_FOUND=0
+  while IFS='=' read -r KEY VAL; do
+    case "$KEY" in
+      RTSP_PASSWORD)
+        case "$VAL" in
+          change_this*|"") echo "❌ RTSP_PASSWORD is a placeholder: $VAL"; PLACEHOLDER_FOUND=1 ;;
+        esac
+        ;;
+      WHATSAPP_PHONE)
+        case "$VAL" in
+          48501234567|1234567890*|"") echo "❌ WHATSAPP_PHONE is a placeholder: $VAL"; PLACEHOLDER_FOUND=1 ;;
+        esac
+        ;;
+      WHATSAPP_APIKEY)
+        case "$VAL" in
+          1234567|"") echo "❌ WHATSAPP_APIKEY is a placeholder: $VAL"; PLACEHOLDER_FOUND=1 ;;
+        esac
+        ;;
+      MQTT_PASSWORD)
+        case "$VAL" in
+          change_this*|"") echo "❌ MQTT_PASSWORD is a placeholder: $VAL"; PLACEHOLDER_FOUND=1 ;;
+        esac
+        ;;
+    esac
+  done < <(grep -E '^[A-Z_]+=' .env)
+
+  if [ "$PLACEHOLDER_FOUND" -eq 1 ]; then
+    echo
+    echo "Please edit .env with your real values, OR delete .env to let"
+    echo "setup.sh ask interactively."
     exit 1
   fi
 fi
@@ -65,7 +92,7 @@ if [ ! -f .env ]; then
   echo "════════════════════════════════════════════════════"
   echo "  STEP 1B: Timezone"
   echo "════════════════════════════════════════════════════"
-  DEFAULT_TZ=$(cat /etc/timezone 2>/dev/null || echo "UTC")
+  DEFAULT_TZ=$(cat /etc/timezone 2>/dev/null || readlink /etc/localtime 2>/dev/null | sed 's|.*zoneinfo/||' || echo "UTC")
   read -r -p "Timezone (IANA format, e.g. Europe/Warsaw, America/New_York) [$DEFAULT_TZ]: " TZ
   TZ=${TZ:-$DEFAULT_TZ}
 
@@ -123,9 +150,13 @@ EOF
   sed -i.bak "s/CAMERA_IP_PLACEHOLDER/$CAMERA_IP/g" config/frigate.yml
   rm -f config/frigate.yml.bak
 
-  # Substitute DOCKER_HOST_IP in HA Lovelace dashboard
-  sed -i.bak "s/DOCKER_HOST_IP/$DOCKER_HOST_IP/g" config/homeassistant/ui-lovelace.yaml
-  rm -f config/homeassistant/ui-lovelace.yaml.bak
+  # Substitute DOCKER_HOST_IP in HA Lovelace dashboard + all example dashboards
+  for f in config/homeassistant/ui-lovelace.yaml \
+           examples/multi-spot-single-camera/ui-lovelace.yaml; do
+    [ -f "$f" ] || continue
+    sed -i.bak "s/DOCKER_HOST_IP/$DOCKER_HOST_IP/g" "$f"
+    rm -f "${f}.bak"
+  done
 else
   echo "✓ .env already exists. Checking for missing keys (added in newer versions)..."
   # Load existing values
@@ -146,17 +177,19 @@ else
     for k in "${MISSING_KEYS[@]}"; do
       case "$k" in
         TZ)
-          DEFAULT_TZ=$(cat /etc/timezone 2>/dev/null || echo "UTC")
+          DEFAULT_TZ=$(cat /etc/timezone 2>/dev/null || readlink /etc/localtime 2>/dev/null | sed 's|.*zoneinfo/||' || echo "UTC")
           echo "  TZ=$DEFAULT_TZ"
           ;;
       esac
     done
     echo
     read -r -p "Add these now and proceed? [Y/n]: " ADD_MISSING
-    if [ "${ADD_MISSING,,}" != "n" ]; then
+    # Lowercase the response — compatible with bash 3.2 (macOS default)
+    ADD_MISSING_LC=$(echo "${ADD_MISSING:-y}" | tr '[:upper:]' '[:lower:]')
+    if [ "$ADD_MISSING_LC" != "n" ]; then
       for k in "${MISSING_KEYS[@]}"; do
         case "$k" in
-          TZ) echo "TZ=$(cat /etc/timezone 2>/dev/null || echo UTC)" >> .env ;;
+          TZ) echo "TZ=$(cat /etc/timezone 2>/dev/null || readlink /etc/localtime 2>/dev/null | sed 's|.*zoneinfo/||' || echo UTC)" >> .env ;;
         esac
       done
       echo "✓ Keys added to .env"

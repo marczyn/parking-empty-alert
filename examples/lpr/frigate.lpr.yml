@@ -34,6 +34,14 @@ ffmpeg:
 
 ###############################################################################
 # GenAI: LPR via CodeProject AI
+#
+# ⚠️ EXPERIMENTAL: Frigate's genai officially supports gemini/ollama/openai/azure.
+# Using 'openai' provider with custom base_url pointing at CodeProject AI is not
+# officially supported. If it fails for you, alternatives:
+#   1. Frigate+ subscription ($50/year, native LPR — easier path)
+#   2. HA Plate Recognizer integration (independent of Frigate)
+#   3. Wait for Frigate native CodeProject AI support (planned 0.17+)
+#
 # When Frigate detects a car, it sends the cropped plate region to CodeProject AI
 # for OCR. The recognized text is published to MQTT as event metadata.
 ###############################################################################
