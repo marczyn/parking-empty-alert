@@ -1,0 +1,44 @@
+###############################################################################
+# Home Assistant — minimalna konfiguracja dla parking detection
+# Frigate automatycznie pojawi się jako integration po starcie HA
+###############################################################################
+
+default_config:
+
+mqtt:
+  broker: mosquitto
+  port: 1883
+  username: !secret mqtt_user
+  password: !secret mqtt_password
+
+# ─────────────────────────────────────────────────────────────
+# WhatsApp via CallMeBot — bezpłatna usługa, zero rejestracji
+# Setup (5 min — instrukcje w README, sekcja "WhatsApp via CallMeBot"):
+#   1. Dodaj +34 644 11 11 11 do kontaktów telefonu
+#   2. Wyślij na WhatsApp: "I allow callmebot to send me messages"
+#   3. Odpowiedź: "API Activated for your phone number. Your APIKEY is XXXXX"
+#   4. Wpisz numer + apikey do secrets.yaml lub przez setup.sh
+# ─────────────────────────────────────────────────────────────
+rest_command:
+  whatsapp_send:
+    url: "https://api.callmebot.com/whatsapp.php?phone={{ phone }}&text={{ message | urlencode }}&apikey={{ apikey }}"
+    method: GET
+    timeout: 30
+
+notify:
+  - name: whatsapp_parking
+    platform: rest
+    resource: https://api.callmebot.com/whatsapp.php
+    method: GET_QUERY
+    data:
+      phone: !secret whatsapp_phone
+      apikey: !secret whatsapp_apikey
+    message_param_name: text
+    verify_ssl: true
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+logger:
+  default: info

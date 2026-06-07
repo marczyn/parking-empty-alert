@@ -1,0 +1,47 @@
+###############################################################################
+# AUTOMATION: 🅿️ Miejsce parkingowe WOLNE → WhatsApp
+#
+# Wyzwala się gdy:
+#   - Frigate raportuje 0 samochodów w strefie "parking_spot"
+#   - Stan trwa nieprzerwanie 2 minuty (filtr anti-blink)
+#
+# Akcja:
+#   - WhatsApp wiadomość przez CallMeBot
+###############################################################################
+- id: parking_spot_free_alert
+  alias: "🅿️ Miejsce parkingowe wolne → WhatsApp"
+  description: "WhatsApp alert gdy miejsce zwolnione przez 2 min"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_parking_spot_car
+      below: 1
+      for:
+        minutes: 2
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          🅿️ Miejsce parkingowe WOLNE!
+          Możesz parkować — zwolniło się 2 min temu.
+          Czas: {{ now().strftime('%H:%M') }}
+
+###############################################################################
+# AUTOMATION: 🚗 Miejsce parkingowe ZAJĘTE → WhatsApp (opcjonalne)
+# Domyślnie wyłączone — odkomentuj jeśli chcesz też alert "ktoś zaparkował"
+###############################################################################
+# - id: parking_spot_taken_alert
+#   alias: "🚗 Miejsce parkingowe zajęte → WhatsApp"
+#   mode: single
+#   trigger:
+#     - platform: numeric_state
+#       entity_id: sensor.parking_parking_spot_car
+#       above: 0
+#       for:
+#         seconds: 30
+#   action:
+#     - service: notify.whatsapp_parking
+#       data:
+#         message: >
+#           🚗 Auto zaparkowało na miejscu.
+#           Czas: {{ now().strftime('%H:%M') }}

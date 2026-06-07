@@ -1,0 +1,35 @@
+# Secrets — NIGDY do git!
+.env
+config/homeassistant/secrets.yaml
+config/mosquitto/passwd
+config/passwd
+
+# HA runtime files
+config/homeassistant/.storage/
+config/homeassistant/.cloud/
+config/homeassistant/home-assistant_v2.db*
+config/homeassistant/home-assistant.log*
+config/homeassistant/blueprints/
+config/homeassistant/deps/
+config/homeassistant/tts/
+config/homeassistant/www/
+config/homeassistant/custom_components/
+
+# Frigate runtime
+config/frigate/clips/
+config/frigate/recordings/
+config/frigate/model_cache/
+config/frigate/.vector.db*
+
+# Docker volumes (managed by Docker, not git)
+.docker-data/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+
+# Editor
+.vscode/
+.idea/

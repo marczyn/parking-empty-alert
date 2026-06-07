@@ -1,0 +1,179 @@
+###############################################################################
+# Frigate config — Universal Reolink + Parking Spot Detection
+# Działa z każdym modelem Reolink (RLC, Duo, TrackMix, Argus, E1 etc.)
+#
+# Jak działa:
+#   - Frigate odczytuje 2 streamy RTSP z kamery (sub do detection, main do recording)
+#   - YOLOv8n model wykrywa samochody w każdej klatce
+#   - "parking_spot" zone definiuje obszar miejsca parkingowego (rysujesz w UI!)
+#   - MQTT publikuje stan: occupied/empty → Home Assistant
+###############################################################################
+
+mqtt:
+  enabled: true
+  host: mosquitto
+  port: 1883
+  user: "{FRIGATE_MQTT_USER}"
+  password: "{FRIGATE_MQTT_PASSWORD}"
+  topic_prefix: frigate
+  client_id: frigate
+
+# Object detector — CPU domyślny (działa wszędzie)
+# Dla większej wydajności: zmień na "edgetpu" (Coral) lub "tensorrt" (NVIDIA)
+detectors:
+  cpu1:
+    type: cpu
+    num_threads: 3
+
+# Detection model — YOLOv8n nano (najszybszy, wystarczający dla 1 kamery)
+model:
+  path: /config/model_cache/yolov8n_320x320.onnx
+  input_tensor: nchw
+  input_pixel_format: rgb
+  input_dtype: float
+  width: 320
+  height: 320
+  labelmap_path: /labelmap/coco-80.txt
+
+# Globalne ustawienia FFmpeg
+ffmpeg:
+  # Wybierz JEDEN preset hwaccel (lub usuń linię dla CPU-only):
+  #   preset-vaapi      = Intel iGPU (najczęstsze)
+  #   preset-nvidia     = NVIDIA GPU
+  #   preset-rpi-64-h264 = Raspberry Pi 4/5
+  #   preset-rkmpp      = Rockchip (Orange Pi, NanoPi)
+  # Bez tej linii = CPU (działa zawsze, większe zużycie procka)
+  hwaccel_args: preset-vaapi
+
+# Globalne ustawienia kamer
+detect:
+  enabled: true
+  fps: 5             # 5fps wystarczy dla auta (nie samolot)
+  max_disappeared: 25 # ile klatek obiekt może "zniknąć" zanim Frigate uzna że odjechał (5s @ 5fps)
+  stationary:
+    interval: 50     # re-check stojącego obiektu co 50 klatek (10s)
+    threshold: 50    # jak długo trwa "stojący" = pełne tracking persistence
+    max_frames:
+      default: 0     # 0 = nieskończenie — KLUCZOWE dla "auto stoi przez 8h"
+
+# Logger (przyda się przy debugu)
+logger:
+  default: info
+  logs:
+    frigate.video: warning
+    frigate.object_detection: warning
+
+# Snapshots eventów (auta wjeżdżające/wyjeżdżające)
+snapshots:
+  enabled: true
+  timestamp: true
+  bounding_box: true
+  retain:
+    default: 7        # 7 dni archiwum
+
+# Recording — zapisuje wideo eventów (opcjonalnie, można wyłączyć)
+record:
+  enabled: true
+  retain:
+    days: 3
+    mode: motion
+  events:
+    retain:
+      default: 7
+      mode: active_objects
+
+###############################################################################
+# CAMERA: parking
+# Edytuj dla swojej kamery Reolink:
+###############################################################################
+cameras:
+  parking:
+    enabled: true
+
+    ffmpeg:
+      inputs:
+        ###############################################################################
+        # SUB stream (low-res, 360p ~ 1 Mbps) — używamy do detekcji AI
+        # Reolink RTSP paths (różne wg modelu) — odkomentuj DZIAŁAJĄCY:
+        ###############################################################################
+        # Większość modeli (RLC, Duo, NVR):
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h264Preview_01_sub
+          roles: [detect]
+        # Modele HEVC-only (np. nowsze Argus): zakomentuj wyżej, odkomentuj poniżej:
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h265Preview_01_sub
+        #   roles: [detect]
+        # Battery cameras (Argus 3, Reolink Lumus) używają tylko main + WiFi:
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/Preview_01_main
+        #   roles: [detect, record]
+
+        ###############################################################################
+        # MAIN stream (high-res, full HD) — używamy do nagrywania video
+        ###############################################################################
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h264Preview_01_main
+          roles: [record]
+        # Dla HEVC:
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h265Preview_01_main
+        #   roles: [record]
+
+    # Rozdzielczość sub-streamu (sprawdzić w Reolink: Settings → Display → Sub-Stream)
+    detect:
+      width: 640
+      height: 360
+      fps: 5
+
+    # Obiekty które śledzimy
+    objects:
+      track:
+        - car
+        - truck
+        - motorcycle
+        - bus
+      filters:
+        car:
+          min_area: 1500       # ignoruj bardzo małe (szum, daleko)
+          max_area: 500000     # ignoruj cały kadr
+          min_score: 0.5
+          threshold: 0.7
+        truck:
+          min_score: 0.5
+          threshold: 0.7
+        motorcycle:
+          min_score: 0.5
+          threshold: 0.7
+
+    ###############################################################################
+    # ZONE: parking_spot
+    # Coordinates = poligon na obrazie, 4 punkty x,y (jako %).
+    # PLACEHOLDER — narysuj w Frigate UI! (instrukcje w README.md)
+    # Po zapisie ze UI, wklej tutaj listę współrzędnych:
+    ###############################################################################
+    zones:
+      parking_spot:
+        coordinates: 0.35,0.50,0.65,0.50,0.65,0.85,0.35,0.85   # PLACEHOLDER
+        inertia: 3              # obiekt musi być w strefie 3 klatki (anti-blink)
+        loitering_time: 0       # natychmiastowo zalicz jako "w strefie"
+        objects:
+          - car
+          - truck
+          - motorcycle
+
+    motion:
+      mask:
+        # Opcjonalne maski (regiony do IGNOROWANIA) np. drzewo na wietrze:
+        # - 0.0,0.0,0.2,0.0,0.2,0.2,0.0,0.2
+        []
+
+    snapshots:
+      enabled: true
+      retain:
+        default: 7
+
+    record:
+      enabled: true
+      retain:
+        days: 3
+      events:
+        retain:
+          default: 7
+
+version: 0.16-0
