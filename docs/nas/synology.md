@@ -198,12 +198,21 @@ services:
 
 ### Hardware acceleration
 
-Synology models with Intel J4xxx or N5xxx CPUs have Intel iGPU — use `preset-vaapi` in `config/frigate.yml`:
+Synology models with Intel J4xxx or N5xxx CPUs have Intel iGPU. To enable:
 
-```yaml
-ffmpeg:
-  hwaccel_args: preset-vaapi
-```
+1. Edit `config/frigate.yml` and uncomment:
+   ```yaml
+   ffmpeg:
+     hwaccel_args: preset-vaapi
+   ```
+
+2. Edit `docker-compose.yml` and uncomment in the `frigate` service:
+   ```yaml
+   devices:
+     - /dev/dri:/dev/dri
+   ```
+
+3. Restart: `docker compose up -d`
 
 **Verify VAAPI access from container:**
 ```bash

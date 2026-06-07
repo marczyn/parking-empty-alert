@@ -91,18 +91,27 @@ The new config adds:
 cat examples/lpr/automations.lpr.yaml >> config/homeassistant/automations.yaml
 ```
 
-Then edit `config/homeassistant/secrets.yaml` and add:
+Then add input_text helpers to `config/homeassistant/configuration.yaml`:
+
 ```yaml
-# Your own car's plate (no spaces, uppercase). Leave blank to alert for all cars.
-owner_plate: "WX12345"
-# Comma-separated list of plates to URGENTLY alert about (e.g., wanted thieves)
-blacklist_plates: "AB1234,CD5678"
+# Add this block to configuration.yaml (alongside `default_config:`):
+input_text:
+  owner_plates:
+    name: My car plates (comma-separated, uppercase, no spaces)
+    initial: "WX12345"      # ← put your own plate(s) here
+    max: 100
+  blacklist_plates:
+    name: Blacklisted plates (comma-separated)
+    initial: ""              # ← leave empty or list dangerous plates
+    max: 100
 ```
 
-Restart HA:
+Then restart HA:
 ```bash
 docker compose restart homeassistant
 ```
+
+After restart, **edit these from HA UI**: Settings → Devices & Services → Helpers → click "My car plates" → change initial value live (no restart needed).
 
 ---
 

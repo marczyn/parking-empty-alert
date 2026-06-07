@@ -156,7 +156,9 @@ services:
       - /dev/dri:/dev/dri
 ```
 
-In `config/frigate.yml`: `hwaccel_args: preset-vaapi`
+In `config/frigate.yml`: uncomment `hwaccel_args: preset-vaapi`
+
+Also in `docker-compose.yml`, uncomment the `devices: [/dev/dri:/dev/dri]` block under the `frigate` service. Restart: `docker compose up -d`.
 
 #### Coral USB TPU
 

@@ -120,7 +120,21 @@ services:
 
 #### Intel iGPU (vaapi)
 
-UnRAID exposes `/dev/dri` by default. Just leave `hwaccel_args: preset-vaapi` in `config/frigate.yml`.
+UnRAID exposes `/dev/dri` by default to all containers. To enable in Frigate:
+
+1. Edit `config/frigate.yml` and uncomment:
+   ```yaml
+   ffmpeg:
+     hwaccel_args: preset-vaapi
+   ```
+
+2. Edit `docker-compose.yml` and uncomment in the `frigate` service:
+   ```yaml
+   devices:
+     - /dev/dri:/dev/dri
+   ```
+
+3. Restart: `docker compose up -d`
 
 If multiple containers use `/dev/dri` (e.g., Plex transcoding + Frigate), UnRAID handles it without conflicts.
 

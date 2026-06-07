@@ -59,14 +59,24 @@ services:
       mosquitto:
         condition: service_healthy
     shm_size: 256mb          # increase to 512mb if >1 camera
-    # Uncomment if you have Coral USB TPU:
+    # Hardware device passthrough — uncomment matching block(s) for your setup:
+    #
+    # Intel iGPU (VAAPI hardware accel):
+    # devices:
+    #   - /dev/dri:/dev/dri
+    #
+    # Coral USB TPU (edgetpu detector):
     # devices:
     #   - /dev/bus/usb:/dev/bus/usb
-    # Uncomment if you have NVIDIA GPU:
+    #
+    # NVIDIA GPU (TensorRT detector):
     # deploy:
     #   resources:
     #     reservations:
     #       devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+    #
+    # Note: After uncommenting, also uncomment the matching hwaccel_args /
+    # detector type in config/frigate.yml.
     environment:
       FRIGATE_RTSP_USER: "${RTSP_USER}"
       FRIGATE_RTSP_PASSWORD: "${RTSP_PASSWORD}"

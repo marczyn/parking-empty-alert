@@ -406,14 +406,22 @@ stationary:
 
 ## Hardware acceleration (optional — higher performance, lower CPU)
 
-| Your hardware | In `frigate.yml` leave `hwaccel_args: ...` |
-|---|---|
-| Intel CPU with iGPU (Haswell+) | `preset-vaapi` (already set) |
-| NVIDIA GPU + CUDA driver | `preset-nvidia` |
-| Raspberry Pi 4/5 | `preset-rpi-64-h264` |
-| Rockchip (Orange Pi, NanoPi) | `preset-rkmpp` |
-| Coral USB TPU (fastest!) | add `devices: [/dev/bus/usb:/dev/bus/usb]` in compose, change detector to `edgetpu` |
-| None of the above | remove `hwaccel_args` line — will be CPU only |
+**Default: CPU-only** (works everywhere, no extra configuration).
+
+To enable hardware acceleration, you need BOTH:
+1. Uncomment a `hwaccel_args` preset in `config/frigate.yml`
+2. Uncomment the matching `devices:` block in `docker-compose.yml`
+
+| Your hardware | `frigate.yml` setting | `docker-compose.yml` setting |
+|---|---|---|
+| Intel iGPU (Haswell+) | `hwaccel_args: preset-vaapi` | `devices: [/dev/dri:/dev/dri]` |
+| NVIDIA GPU + CUDA | `hwaccel_args: preset-nvidia` | `deploy.resources.reservations.devices: nvidia` block |
+| Raspberry Pi 4/5 | `hwaccel_args: preset-rpi-64-h264` | (no device — automatic) |
+| Rockchip (Orange Pi, NanoPi) | `hwaccel_args: preset-rkmpp` | (no device — automatic) |
+| Coral USB TPU (best for AI) | (change detector to `edgetpu`) | `devices: [/dev/bus/usb:/dev/bus/usb]` |
+| None of the above | (leave default — CPU only) | (no changes) |
+
+⚠️ **DO NOT enable VAAPI without confirming you have Intel iGPU** — Frigate will fail to start on AMD/ARM hosts without the device.
 
 ---
 

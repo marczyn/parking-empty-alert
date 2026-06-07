@@ -12,6 +12,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.3] — 2026-06-07
+
+### Fixed (Round 3 code audit — 8 more gaps)
+
+#### 🔴 Critical
+
+- **LPR automations reference `input_text.owner_plates` and `input_text.blacklist_plates`
+  but they were never defined anywhere.** Automation crashed at runtime ("entity
+  unavailable"). Added input_text helper definitions to LPR README with clear
+  instructions to paste into configuration.yaml.
+
+- **LPR docker-compose uses CUDA-only image as default** (`codeproject/ai-server:cuda12`).
+  Users without NVIDIA GPU got image pull failures. Switched default to
+  CPU-compatible `:latest` image; CUDA option commented for users with GPU.
+
+#### 🟡 Important
+
+- **NAS guides (Synology, UnRAID, QNAP) reference `hwaccel_args: preset-vaapi` as
+  default**, conflicting with v1.3.2 change where it's now commented out. Updated
+  all 3 NAS guides with the correct 2-step enable procedure (config + compose).
+
+- **README hardware acceleration table said "preset-vaapi (already set)"** —
+  misleading after v1.3.2. Rewrote table to show both `frigate.yml` AND
+  `docker-compose.yml` changes needed; added ⚠️ warning about VAAPI.
+
+- **No `/dev/dri` passthrough block in compose** — even if user uncomments
+  `hwaccel_args: preset-vaapi`, the device wasn't exposed → Frigate failed.
+  Added commented block with full instructions; sync'd with NAS guides.
+
+- **`config/frigate.yml` had `model:` block with hardcoded path** to ONNX file
+  that doesn't exist by default. Frigate ships with a bundled default model.
+  Commented out the entire `model:` block; users can opt-in to custom models.
+
+#### 🟢 Polish
+
+- **No `backup.sh` script** — users had to copy tar commands from User Guide.
+  Added `scripts/backup.sh` with proper exclusions (recordings, HA cache, logs),
+  timestamped filenames, permission setting, restore + 3-2-1 rule reminder.
+
+- **CI shellcheck not severity-pinned** — future shellcheck releases adding
+  style rules would break CI without warning. Pinned to `--severity=warning`.
+
+### Changed
+- CI shellcheck now runs against `scripts/*.sh` (covers new `backup.sh`).
+
+[1.3.3]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.3
+
 ## [1.3.2] — 2026-06-07
 
 ### Fixed (Round 2 code audit — 8 more gaps)
@@ -294,7 +341,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.3...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

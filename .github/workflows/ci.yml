@@ -111,8 +111,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Run shellcheck
         run: |
-          shellcheck scripts/setup.sh
-          echo "✓ setup.sh OK"
+          # Pin severity: only flag error/warning, not style/info
+          # This way new shellcheck releases adding style rules don't break CI
+          shellcheck --severity=warning scripts/*.sh
+          echo "✓ all scripts OK"
 
   frigate-config:
     name: Frigate config schema validation

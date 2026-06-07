@@ -25,15 +25,21 @@ detectors:
     type: cpu
     num_threads: 3
 
-# Detection model — YOLOv8n nano (fastest, sufficient for 1 camera)
-model:
-  path: /config/model_cache/yolov8n_320x320.onnx
-  input_tensor: nchw
-  input_pixel_format: rgb
-  input_dtype: float
-  width: 320
-  height: 320
-  labelmap_path: /labelmap/coco-80.txt
+# Detection model — Frigate's bundled default (works out of the box)
+# Frigate ships with a default model. Omit `model:` to use it.
+#
+# To switch to a different model (e.g., YOLOv8n for better cars accuracy):
+#   1. Place .onnx file in ./model_cache/ (bind-mounted to /config/model_cache/)
+#   2. Uncomment + adjust the block below
+#
+# model:
+#   path: /config/model_cache/yolov8n_320x320.onnx
+#   input_tensor: nchw
+#   input_pixel_format: rgb
+#   input_dtype: float
+#   width: 320
+#   height: 320
+#   labelmap_path: /labelmap/coco-80.txt
 
 # Global FFmpeg settings
 ffmpeg:

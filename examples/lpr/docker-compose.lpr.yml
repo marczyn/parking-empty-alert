@@ -17,9 +17,11 @@ services:
   # CodeProject AI — local AI server with ALPR module
   # ─────────────────────────────────────────────────────────────
   codeproject-ai:
-    image: codeproject/ai-server:cuda12
-    # If you have no NVIDIA GPU, use the CPU-only image instead:
-    # image: codeproject/ai-server:latest
+    # Default: CPU-only image (works everywhere)
+    image: codeproject/ai-server:latest
+    # If you have an NVIDIA GPU + CUDA driver installed, switch to:
+    # image: codeproject/ai-server:cuda12
+    # (And uncomment the `deploy.resources.reservations.devices` block below.)
     container_name: codeproject-ai
     restart: always
     ports:
