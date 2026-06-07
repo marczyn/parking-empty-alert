@@ -25,6 +25,8 @@ jobs:
   build-full-amd64:
     name: Full — amd64
     runs-on: [self-hosted, linux, x64, parking]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -33,14 +35,14 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push amd64
+      - name: Build and push amd64 by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-full
           platforms: linux/amd64
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:amd64
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert,push-by-digest=true,name-canonical=true,push=true
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-full-amd64
@@ -49,6 +51,8 @@ jobs:
   build-full-arm64:
     name: Full — arm64
     runs-on: [self-hosted, linux, x64, parking]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -58,14 +62,14 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push arm64
+      - name: Build and push arm64 by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-full
           platforms: linux/arm64
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:arm64
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert,push-by-digest=true,name-canonical=true,push=true
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-full-arm64
@@ -86,13 +90,15 @@ jobs:
           docker buildx imagetools create \
             --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:latest \
             --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:${{ env.TAG }} \
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:amd64 \
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:arm64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert@${{ needs.build-full-amd64.outputs.digest }} \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert@${{ needs.build-full-arm64.outputs.digest }}
 
   # ── Lite image ────────────────────────────────────────────────
   build-lite-amd64:
     name: Lite — amd64
     runs-on: [self-hosted, linux, x64, parking]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -101,14 +107,14 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push amd64
+      - name: Build and push amd64 by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-lite
           platforms: linux/amd64
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:amd64
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite,push-by-digest=true,name-canonical=true,push=true
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-lite-amd64
@@ -117,6 +123,8 @@ jobs:
   build-lite-arm64:
     name: Lite — arm64
     runs-on: [self-hosted, linux, x64, parking]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -126,14 +134,14 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push arm64
+      - name: Build and push arm64 by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-lite
           platforms: linux/arm64
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:arm64
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite,push-by-digest=true,name-canonical=true,push=true
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-lite-arm64
@@ -154,5 +162,5 @@ jobs:
           docker buildx imagetools create \
             --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:latest \
             --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:${{ env.TAG }} \
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:amd64 \
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:arm64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite@${{ needs.build-lite-amd64.outputs.digest }} \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite@${{ needs.build-lite-arm64.outputs.digest }}
