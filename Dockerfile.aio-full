@@ -123,8 +123,7 @@ EOF
 RUN cat > /opt/ha-config/configuration.yaml <<'EOF'
 default_config:
 
-http:
-  use_x_forwarded_for: true
+http: {}
 
 mqtt:
   broker: localhost
