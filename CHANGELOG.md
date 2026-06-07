@@ -12,6 +12,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.11] — 2026-06-07
+
+### Fixed (Round 11 code audit — 6 more gaps)
+
+#### 🔴 Critical
+
+- **v1.3.10 client_id substitution only patched base `config/frigate.yml`.**
+  Users switching to multi-spot or LPR examples reverted to hardcoded
+  `client_id: frigate` → collision risk returned. Extended substitution to all
+  3 example frigate configs.
+
+- **`config/passwd` missing on fresh checkout** caused Docker to mount an empty
+  directory (not file) → Mosquitto crashed with "no auth method available".
+  Added prominent comment in docker-compose.yml directing users to run
+  setup.sh first.
+
+#### 🟡 Important
+
+- **DOCKER_HOST_IP re-substitution broken on 2nd setup.sh run.** After first
+  substitution, the placeholder `DOCKER_HOST_IP` is gone — `sed` finds nothing
+  to replace → IP cannot be changed without manual edit. Now uses regex to
+  match both placeholder AND existing IP in iframe URLs, handling both
+  fresh install and host-IP-changed scenarios.
+
+- **`restore.sh` didn't reset secret file permissions** — tar preserves perms
+  from archive (potentially 644). After restore, `.env`, `config/passwd`,
+  and `secrets.yaml` could be world-readable. Added explicit `chmod 600`
+  for all 3 files post-extract.
+
+#### 🟢 Polish
+
+- **README Frigate badge said "0.16"** but `:stable` image is 0.15.x →
+  visual mismatch. Changed both Frigate and HA badges to "stable" (matches
+  Docker tag, no version drift).
+
+- Hwaccel validation message in setup.sh kept (text matches actual block).
+
+[1.3.11]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.11
+
 ## [1.3.10] — 2026-06-07
 
 ### Fixed (Round 10 code audit — 5 more gaps)
@@ -650,7 +689,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.10...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.11...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

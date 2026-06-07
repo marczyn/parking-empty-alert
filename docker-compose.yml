@@ -27,6 +27,9 @@ services:
       - "1883:1883"
     volumes:
       - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      # NOTE: ./config/passwd MUST exist before 'docker compose up'.
+      # If missing, Docker creates an empty DIRECTORY (not a file) and mosquitto
+      # fails to start. Run 'bash scripts/setup.sh' first — it generates passwd.
       - ./config/passwd:/mosquitto/config/passwd:ro
       - mosquitto-data:/mosquitto/data
     # Built-in log rotation via Docker (json-file driver default = 10MB × 3 files)

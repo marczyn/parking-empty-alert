@@ -1,7 +1,7 @@
 # 🅿️ Parking Empty Alert — Docker Stack
 
-[![Frigate](https://img.shields.io/badge/Frigate-0.16-blue?logo=videocam)](https://frigate.video)
-[![Home Assistant](https://img.shields.io/badge/Home_Assistant-2026.5+-41BDF5?logo=home-assistant&logoColor=white)](https://home-assistant.io)
+[![Frigate](https://img.shields.io/badge/Frigate-stable-blue?logo=videocam)](https://frigate.video)
+[![Home Assistant](https://img.shields.io/badge/Home_Assistant-stable-41BDF5?logo=home-assistant&logoColor=white)](https://home-assistant.io)
 [![Reolink](https://img.shields.io/badge/Reolink-any_model-orange)](https://reolink.com)
 [![Docker](https://img.shields.io/badge/Docker-required-2496ED?logo=docker&logoColor=white)](https://docker.com)
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-via_CallMeBot-25D366?logo=whatsapp&logoColor=white)](https://www.callmebot.com/)

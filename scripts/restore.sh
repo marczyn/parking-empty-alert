@@ -46,7 +46,12 @@ docker compose down 2>/dev/null || true
 echo "Extracting $BACKUP_FILE..."
 tar xzf "$BACKUP_FILE"
 
-echo "✅ Restore complete."
+# Restore safe permissions on secret files
+[ -f .env ] && chmod 600 .env
+[ -f config/passwd ] && chmod 600 config/passwd
+[ -f config/homeassistant/secrets.yaml ] && chmod 600 config/homeassistant/secrets.yaml
+
+echo "✅ Restore complete (secrets chmod 600)."
 echo
 echo "Verify config:"
 echo "  cat .env"

@@ -177,16 +177,24 @@ EOF
   rm -f config/frigate.yml.bak
 
   # Make Frigate MQTT client_id unique to prevent collisions if user runs
-  # multiple Frigate instances pointing at same broker
-  CLIENT_ID="frigate-$(hostname -s 2>/dev/null || echo $RANDOM)"
-  sed -i.bak "s/^  client_id: frigate$/  client_id: $CLIENT_ID/" config/frigate.yml
-  rm -f config/frigate.yml.bak
+  # multiple Frigate instances pointing at same broker. Substitute in base config
+  # AND all example configs so switching to an example works correctly.
+  CLIENT_ID="frigate-$(hostname -s 2>/dev/null || echo "$RANDOM")"
+  for cfg in config/frigate.yml \
+             examples/multi-spot-single-camera/frigate.yml \
+             examples/lpr/frigate.lpr.yml; do
+    [ -f "$cfg" ] || continue
+    sed -i.bak "s/^  client_id: frigate$/  client_id: $CLIENT_ID/" "$cfg"
+    rm -f "${cfg}.bak"
+  done
 
-  # Substitute DOCKER_HOST_IP in HA Lovelace dashboard + all example dashboards
+  # Substitute DOCKER_HOST_IP in HA Lovelace dashboard + all example dashboards.
+  # Use a stable marker comment so we can find and replace existing IPs on re-run.
   for f in config/homeassistant/ui-lovelace.yaml \
            examples/multi-spot-single-camera/ui-lovelace.yaml; do
     [ -f "$f" ] || continue
-    sed -i.bak "s/DOCKER_HOST_IP/$DOCKER_HOST_IP/g" "$f"
+    # Replace any existing IP in iframe URLs (handles re-runs after IP change)
+    sed -i.bak -E "s|(url: http://)[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+(:5000)|\1${DOCKER_HOST_IP}\2|g; s/DOCKER_HOST_IP/${DOCKER_HOST_IP}/g" "$f"
     rm -f "${f}.bak"
   done
 else
