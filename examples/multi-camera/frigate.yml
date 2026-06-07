@@ -12,6 +12,9 @@ mqtt:
   port: 1883
   user: "{FRIGATE_MQTT_USER}"
   password: "{FRIGATE_MQTT_PASSWORD}"
+  topic_prefix: frigate
+  # client_id substituted to unique '<hostname>' by setup.sh
+  client_id: frigate
 
 detectors:
   cpu1:

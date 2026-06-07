@@ -68,6 +68,18 @@ Linux is recommended for production (lower resource overhead, better stability f
 
 Skip this step if you already have Docker installed (`docker --version` works).
 
+**Minimum required versions:**
+- **Docker Engine 24.0+** (for healthcheck improvements, depends_on conditions)
+- **Docker Compose v2.x** (`docker compose` with space) — v1 (`docker-compose` with hyphen) is **NOT supported** (EOL June 2023)
+
+Verify:
+```bash
+docker --version           # should be Docker version 24.x or newer
+docker compose version     # should be Docker Compose version v2.x.x
+```
+
+If you see "command not found" for `docker compose` but `docker-compose` works, you have v1. Upgrade per [Docker Compose v2 migration guide](https://docs.docker.com/compose/migrate/).
+
 ### Linux (Ubuntu/Debian)
 
 ```bash
@@ -159,6 +171,9 @@ Best practice: don't reuse your admin account.
 2. Fields:
    - Username: `frigate`
    - Permission: **Viewer** (read-only)
+     - Older firmware: may show as **"Visitor"** or **"Guest"**
+     - Newer firmware (after late 2024): may show as **"Common User"** (vs Admin)
+     - Whatever it's called, choose **non-admin** / **read-only** option
    - Password: generate a strong one and save it
 3. **Save**
 

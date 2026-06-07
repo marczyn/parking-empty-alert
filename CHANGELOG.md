@@ -12,6 +12,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.12] — 2026-06-07
+
+### Fixed (Round 12 code audit — 5 more gaps)
+
+#### 🔴 Critical
+
+- **v1.3.11 client_id substitution skipped `examples/multi-camera/frigate.yml`** —
+  that file had NO `client_id:` line at all (used Frigate default). Setup.sh
+  pattern-matched only `client_id: frigate` line. Added `client_id: frigate`
+  + `topic_prefix: frigate` to multi-camera example; added it to the
+  substitution loop in setup.sh.
+
+- **MQTT client_id could exceed 23-char limit** of MQTT 3.1 brokers. Setup.sh
+  generated `frigate-<full-hostname>` — on long hostnames (e.g., `frigate-nas-cluster-node-3`)
+  would fail. Added `cut -c1-23` truncation.
+
+#### 🟡 Important
+
+- **DOCKER_HOST_IP sed substitution from v1.3.11 modified comment text.**
+  Second pattern `s/DOCKER_HOST_IP/IP/g` was unanchored — substituted in
+  comments mentioning DOCKER_HOST_IP (e.g., "DOCKER_HOST_IP example: 192.168.1.10"
+  became "192.168.1.20 example: 192.168.1.10"). Now both patterns anchored to
+  `url: http://...:5000` URL context.
+
+- **Docker Compose minimum version not documented.** INSTALLATION.md showed
+  example commands but didn't state v2.x is required (v1 EOL June 2023 —
+  doesn't support `service_healthy` condition in `depends_on`). Added explicit
+  version requirements + migration link.
+
+#### 🟢 Polish
+
+- **Reolink user permission name varies by firmware** ("Viewer" / "Visitor" /
+  "Guest" / "Common User"). Added note in INSTALLATION.md §3.3 covering all
+  variants — pick the non-admin option whatever it's named.
+
+[1.3.12]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.12
+
 ## [1.3.11] — 2026-06-07
 
 ### Fixed (Round 11 code audit — 6 more gaps)
@@ -689,7 +726,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.11...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.12...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0
