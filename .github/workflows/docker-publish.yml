@@ -17,38 +17,37 @@ permissions:
 env:
   REGISTRY: ghcr.io
   OWNER: ${{ github.repository_owner }}
+  TAG: ${{ github.event.inputs.tag || github.event.release.tag_name || 'latest' }}
 
 jobs:
-  build-full:
-    name: Build all-in-one (Frigate + Mosquitto + HA)
+
+  # ── Full image ────────────────────────────────────────────────
+  build-full-amd64:
+    name: Full — amd64
     runs-on: [self-hosted, linux, x64, parking]
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push AIO full image
+      - name: Build and push amd64
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-full
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:${{ github.event.inputs.tag || github.event.release.tag_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:amd64
           provenance: false
           sbom: false
-          cache-from: type=gha,scope=aio-full
-          cache-to: type=gha,scope=aio-full,mode=max
+          cache-from: type=gha,scope=aio-full-amd64
+          cache-to: type=gha,scope=aio-full-amd64,mode=max
 
-  build-lite:
-    name: Build all-in-one lite (Frigate + Mosquitto)
+  build-full-arm64:
+    name: Full — arm64
     runs-on: [self-hosted, linux, x64, parking]
     steps:
       - uses: actions/checkout@v4
@@ -59,18 +58,101 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push arm64
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.aio-full
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:arm64
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=aio-full-arm64
+          cache-to: type=gha,scope=aio-full-arm64,mode=max
 
-      - name: Build and push AIO lite image
+  merge-full:
+    name: Full — merge manifest
+    needs: [build-full-amd64, build-full-arm64]
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create and push manifest list
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:latest \
+            --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:${{ env.TAG }} \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:amd64 \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:arm64
+
+  # ── Lite image ────────────────────────────────────────────────
+  build-lite-amd64:
+    name: Lite — amd64
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push amd64
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-lite
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:${{ github.event.inputs.tag || github.event.release.tag_name }}
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:amd64
           provenance: false
           sbom: false
-          cache-from: type=gha,scope=aio-lite
-          cache-to: type=gha,scope=aio-lite,mode=max
+          cache-from: type=gha,scope=aio-lite-amd64
+          cache-to: type=gha,scope=aio-lite-amd64,mode=max
+
+  build-lite-arm64:
+    name: Lite — arm64
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push arm64
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.aio-lite
+          platforms: linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:arm64
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=aio-lite-arm64
+          cache-to: type=gha,scope=aio-lite-arm64,mode=max
+
+  merge-lite:
+    name: Lite — merge manifest
+    needs: [build-lite-amd64, build-lite-arm64]
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create and push manifest list
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:latest \
+            --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:${{ env.TAG }} \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:amd64 \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:arm64
