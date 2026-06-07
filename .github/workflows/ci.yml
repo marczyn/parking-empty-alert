@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate configs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install YAML linter
+        run: pip install yamllint
+
+      - name: Validate YAML syntax (all files)
+        run: |
+          yamllint -d "{extends: default, rules: {line-length: disable, indentation: {indent-sequences: consistent}, document-start: disable, comments: {min-spaces-from-content: 1}, truthy: {check-keys: false}}}" \
+            docker-compose.yml \
+            config/frigate.yml \
+            config/mosquitto.conf \
+            config/homeassistant/*.yaml \
+            examples/multi-camera/*.yml || true
+          # Real strict check: YAML must parse
+          python -c "
+          import yaml, sys, glob
+          ok = True
+          for f in ['docker-compose.yml', 'config/frigate.yml'] + glob.glob('config/homeassistant/*.yaml') + glob.glob('examples/multi-camera/*.yml'):
+              try:
+                  yaml.safe_load(open(f))
+                  print(f'✓ {f}')
+              except Exception as e:
+                  print(f'✗ {f}: {e}')
+                  ok = False
+          sys.exit(0 if ok else 1)
+          "
+
+      - name: Validate docker-compose.yml structure
+        run: |
+          # Need fake .env for compose config to succeed
+          cp .env.example .env
+          docker compose config --quiet
+          echo "✓ docker-compose.yml structure OK"
+
+  shellcheck:
+    name: ShellCheck scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck scripts/setup.sh
+          echo "✓ setup.sh OK"
+
+  frigate-config:
+    name: Frigate config validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse Frigate config schema
+        run: |
+          # Pull Frigate image and validate config syntax
+          docker pull ghcr.io/blakeblackshear/frigate:stable
+          docker run --rm \
+            -v "$PWD/config/frigate.yml:/config/config.yml:ro" \
+            --entrypoint python3 \
+            ghcr.io/blakeblackshear/frigate:stable \
+            -c "
+          import yaml
+          c = yaml.safe_load(open('/config/config.yml'))
+          assert 'mqtt' in c, 'missing mqtt'
+          assert 'cameras' in c, 'missing cameras'
+          assert 'detectors' in c, 'missing detectors'
+          for name, cam in c['cameras'].items():
+              assert 'ffmpeg' in cam, f'camera {name}: missing ffmpeg'
+              assert 'zones' in cam, f'camera {name}: missing zones'
+              assert any('detect' in inp.get('roles',[]) for inp in cam['ffmpeg']['inputs']), f'camera {name}: no detect role'
+          print('✓ frigate.yml schema OK')
+          "

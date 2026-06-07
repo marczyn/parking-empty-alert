@@ -1,12 +1,12 @@
 ###############################################################################
 # Frigate config — Universal Reolink + Parking Spot Detection
-# Działa z każdym modelem Reolink (RLC, Duo, TrackMix, Argus, E1 etc.)
+# Works with any Reolink model (RLC, Duo, TrackMix, Argus, E1, etc.)
 #
-# Jak działa:
-#   - Frigate odczytuje 2 streamy RTSP z kamery (sub do detection, main do recording)
-#   - YOLOv8n model wykrywa samochody w każdej klatce
-#   - "parking_spot" zone definiuje obszar miejsca parkingowego (rysujesz w UI!)
-#   - MQTT publikuje stan: occupied/empty → Home Assistant
+# How it works:
+#   - Frigate reads 2 RTSP streams from the camera (sub for detection, main for recording)
+#   - YOLOv8n model detects cars in every frame
+#   - "parking_spot" zone defines the parking area (you draw it in UI!)
+#   - MQTT publishes state: occupied/empty → Home Assistant
 ###############################################################################
 
 mqtt:
@@ -18,14 +18,14 @@ mqtt:
   topic_prefix: frigate
   client_id: frigate
 
-# Object detector — CPU domyślny (działa wszędzie)
-# Dla większej wydajności: zmień na "edgetpu" (Coral) lub "tensorrt" (NVIDIA)
+# Object detector — CPU default (works everywhere)
+# For more performance: change to "edgetpu" (Coral) or "tensorrt" (NVIDIA)
 detectors:
   cpu1:
     type: cpu
     num_threads: 3
 
-# Detection model — YOLOv8n nano (najszybszy, wystarczający dla 1 kamery)
+# Detection model — YOLOv8n nano (fastest, sufficient for 1 camera)
 model:
   path: /config/model_cache/yolov8n_320x320.onnx
   input_tensor: nchw
@@ -35,43 +35,43 @@ model:
   height: 320
   labelmap_path: /labelmap/coco-80.txt
 
-# Globalne ustawienia FFmpeg
+# Global FFmpeg settings
 ffmpeg:
-  # Wybierz JEDEN preset hwaccel (lub usuń linię dla CPU-only):
-  #   preset-vaapi      = Intel iGPU (najczęstsze)
+  # Choose ONE hwaccel preset (or remove line for CPU-only):
+  #   preset-vaapi      = Intel iGPU (most common)
   #   preset-nvidia     = NVIDIA GPU
   #   preset-rpi-64-h264 = Raspberry Pi 4/5
   #   preset-rkmpp      = Rockchip (Orange Pi, NanoPi)
-  # Bez tej linii = CPU (działa zawsze, większe zużycie procka)
+  # Without this line = CPU (always works, higher CPU usage)
   hwaccel_args: preset-vaapi
 
-# Globalne ustawienia kamer
+# Global camera settings
 detect:
   enabled: true
-  fps: 5             # 5fps wystarczy dla auta (nie samolot)
-  max_disappeared: 25 # ile klatek obiekt może "zniknąć" zanim Frigate uzna że odjechał (5s @ 5fps)
+  fps: 5             # 5fps is enough for a car (not a plane)
+  max_disappeared: 25 # how many frames object can "disappear" before Frigate considers it gone (5s @ 5fps)
   stationary:
-    interval: 50     # re-check stojącego obiektu co 50 klatek (10s)
-    threshold: 50    # jak długo trwa "stojący" = pełne tracking persistence
+    interval: 50     # re-check stationary object every 50 frames (10s)
+    threshold: 50    # how long until it's "stationary" = full tracking persistence
     max_frames:
-      default: 0     # 0 = nieskończenie — KLUCZOWE dla "auto stoi przez 8h"
+      default: 0     # 0 = forever — CRITICAL for "car parked for 8h"
 
-# Logger (przyda się przy debugu)
+# Logger (useful for debugging)
 logger:
   default: info
   logs:
     frigate.video: warning
     frigate.object_detection: warning
 
-# Snapshots eventów (auta wjeżdżające/wyjeżdżające)
+# Event snapshots (cars entering/leaving)
 snapshots:
   enabled: true
   timestamp: true
   bounding_box: true
   retain:
-    default: 7        # 7 dni archiwum
+    default: 7        # 7-day archive
 
-# Recording — zapisuje wideo eventów (opcjonalnie, można wyłączyć)
+# Recording — saves event videos (optional, can be disabled)
 record:
   enabled: true
   retain:
@@ -84,7 +84,7 @@ record:
 
 ###############################################################################
 # CAMERA: parking
-# Edytuj dla swojej kamery Reolink:
+# Edit for your camera Reolink:
 ###############################################################################
 cameras:
   parking:
@@ -93,35 +93,35 @@ cameras:
     ffmpeg:
       inputs:
         ###############################################################################
-        # SUB stream (low-res, 360p ~ 1 Mbps) — używamy do detekcji AI
-        # Reolink RTSP paths (różne wg modelu) — odkomentuj DZIAŁAJĄCY:
+        # SUB stream (low-res, 360p ~ 1 Mbps) — used for AI detection
+        # Reolink RTSP paths (vary by model) — uncomment the WORKING one:
         ###############################################################################
-        # Większość modeli (RLC, Duo, NVR):
+        # Most models (RLC, Duo, NVR):
         - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h264Preview_01_sub
           roles: [detect]
-        # Modele HEVC-only (np. nowsze Argus): zakomentuj wyżej, odkomentuj poniżej:
+        # HEVC-only models (e.g., newer Argus): comment above, uncomment below:
         # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h265Preview_01_sub
         #   roles: [detect]
-        # Battery cameras (Argus 3, Reolink Lumus) używają tylko main + WiFi:
+        # Battery cameras (Argus 3, Reolink Lumus) use only main + WiFi:
         # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/Preview_01_main
         #   roles: [detect, record]
 
         ###############################################################################
-        # MAIN stream (high-res, full HD) — używamy do nagrywania video
+        # MAIN stream (high-res, full HD) — used for video recording
         ###############################################################################
         - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h264Preview_01_main
           roles: [record]
-        # Dla HEVC:
+        # For HEVC:
         # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h265Preview_01_main
         #   roles: [record]
 
-    # Rozdzielczość sub-streamu (sprawdzić w Reolink: Settings → Display → Sub-Stream)
+    # Sub-stream resolution (check in Reolink: Settings → Display → Sub-Stream)
     detect:
       width: 640
       height: 360
       fps: 5
 
-    # Obiekty które śledzimy
+    # Objects to track
     objects:
       track:
         - car
@@ -130,8 +130,8 @@ cameras:
         - bus
       filters:
         car:
-          min_area: 1500       # ignoruj bardzo małe (szum, daleko)
-          max_area: 500000     # ignoruj cały kadr
+          min_area: 1500       # ignore very small (noise, far away)
+          max_area: 500000     # ignore whole frame
           min_score: 0.5
           threshold: 0.7
         truck:
@@ -143,15 +143,15 @@ cameras:
 
     ###############################################################################
     # ZONE: parking_spot
-    # Coordinates = poligon na obrazie, 4 punkty x,y (jako %).
-    # PLACEHOLDER — narysuj w Frigate UI! (instrukcje w README.md)
-    # Po zapisie ze UI, wklej tutaj listę współrzędnych:
+    # Coordinates = polygon on the frame, 4 points x,y (as %).
+    # PLACEHOLDER — draw in Frigate UI! (instructions in README.md)
+    # After saving from UI, paste the coordinates list here:
     ###############################################################################
     zones:
       parking_spot:
         coordinates: 0.35,0.50,0.65,0.50,0.65,0.85,0.35,0.85   # PLACEHOLDER
-        inertia: 3              # obiekt musi być w strefie 3 klatki (anti-blink)
-        loitering_time: 0       # natychmiastowo zalicz jako "w strefie"
+        inertia: 3              # object must be in zone for 3 frames (anti-blink)
+        loitering_time: 0       # instantly count as "in zone"
         objects:
           - car
           - truck
@@ -159,7 +159,7 @@ cameras:
 
     motion:
       mask:
-        # Opcjonalne maski (regiony do IGNOROWANIA) np. drzewo na wietrze:
+        # Optional masks (regions to IGNORE) e.g., tree blowing in wind:
         # - 0.0,0.0,0.2,0.0,0.2,0.2,0.0,0.2
         []
 

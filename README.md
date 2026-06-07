@@ -7,19 +7,19 @@
 [![WhatsApp](https://img.shields.io/badge/WhatsApp-via_CallMeBot-25D366?logo=whatsapp&logoColor=white)](https://www.callmebot.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
-**Co to robi:** wysyła **WhatsApp** wiadomość **gdy miejsce parkingowe jest WOLNE** (auto odjechało).
+**What it does:** sends a **WhatsApp** message **when a parking spot becomes EMPTY** (car drove away).
 
-**Hardware:** dowolny komputer/serwer z Dockerem. Brak dodatkowych zakupów.
+**Hardware:** any computer/server with Docker. No extra purchases required.
 
-**Niezawodność:** 95-99% (Frigate object tracking z persistence).
+**Reliability:** 95-99% (Frigate object tracking with persistence).
 
-**Czas setup:** 30 min pierwszy raz, działa lata.
+**Setup time:** 30 minutes first time, runs for years.
 
 ---
 
-## 📺 Jak to wygląda
+## 📺 How it looks
 
-### Architektura
+### Architecture
 
 ```mermaid
 graph LR
@@ -35,7 +35,7 @@ graph LR
     end
 
     HA -->|HTTP GET| CALLMEBOT[☎️ CallMeBot]
-    CALLMEBOT -->|WhatsApp msg| PHONE[📱 Telefon]
+    CALLMEBOT -->|WhatsApp msg| PHONE[📱 Phone]
 
     style CAM fill:#FFA500,color:#000
     style FRIGATE fill:#4CAF50,color:#fff
@@ -43,29 +43,29 @@ graph LR
     style CALLMEBOT fill:#25D366,color:#fff
 ```
 
-### Flow eventu "auto odjechało"
+### Event flow "car left"
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Car as 🚗 Auto
+    participant Car as 🚗 Car
     participant Cam as 📷 Reolink
     participant Frigate as 🧠 Frigate
     participant HA as 🏠 HA
     participant Phone as 📱 WhatsApp
 
-    Car->>Cam: odjeżdża z miejsca
-    Cam->>Frigate: RTSP klatka
+    Car->>Cam: drives away from spot
+    Cam->>Frigate: RTSP frame
     Frigate->>Frigate: YOLOv8 detection
-    Note over Frigate: car count w zone = 0
+    Note over Frigate: car count in zone = 0
     Frigate->>HA: MQTT: sensor.parking_car = 0
-    Note over HA: czekam 2 min<br/>(anti-blink)
-    HA->>HA: stan 'empty' przez 2 min ✓
+    Note over HA: wait 2 min<br/>(anti-blink)
+    HA->>HA: state 'empty' for 2 min ✓
     HA->>Phone: WhatsApp via CallMeBot
-    Note over Phone: 🅿️ Miejsce wolne!
+    Note over Phone: 🅿️ Spot free!
 ```
 
-### Stany strefy parkingowej
+### Parking zone states
 
 ```mermaid
 stateDiagram-v2
@@ -81,21 +81,21 @@ stateDiagram-v2
 
     note right of Empty_pending
         Anti-blink protection:
-        ignorujemy chwilowy brak
-        (kierowca przemknął)
+        ignore brief disappearance
+        (driver crossing through)
     end note
 ```
 
-### Przykład UI Frigate (zone editor)
+### Frigate UI example (zone editor)
 
-Frigate ma wbudowany graficzny edytor stref — rysujesz **poligon** wprost na klatce z kamery:
+Frigate has a built-in graphical zone editor — you draw a **polygon** directly on the camera frame:
 
 ```
 ┌─────────────────────────────────────────────────┐
 │ Frigate Debug View — camera "parking"           │
 │                                                 │
 │  ╔═══════════════════════════════╗              │
-│  ║   widok z kamery (640×360)    ║              │
+│  ║   camera view (640×360)        ║              │
 │  ║                                ║              │
 │  ║          ┌─────────┐          ║              │
 │  ║         /          \  ←── zone parking_spot  │
@@ -114,130 +114,129 @@ Frigate ma wbudowany graficzny edytor stref — rysujesz **poligon** wprost na k
 └─────────────────────────────────────────────────┘
 ```
 
-**🎬 Live demo Frigate UI:** https://demo.frigate.video (oficjalne demo, działa w przeglądarce)
+**🎬 Frigate live demo:** https://demo.frigate.video (official demo, runs in browser)
 
-### Przykład WhatsApp alertu na telefonie
+### Example WhatsApp alert on phone
 
 ```
 ┌────────────────────────────────────┐
 │  WhatsApp                          │
 ├────────────────────────────────────┤
 │                                    │
-│  🅿️ Miejsce parkingowe WOLNE!     │
-│  Możesz parkować — zwolniło się    │
-│  2 min temu.                       │
-│  Czas: 14:32                       │
+│  🅿️ Parking spot FREE!             │
+│  You can park — spot became free   │
+│  2 minutes ago.                    │
+│  Time: 14:32                       │
 │                                    │
 │                          14:32 ✓✓  │
 │                                    │
 └────────────────────────────────────┘
 ```
 
-### Home Assistant — entities po setup
+### Home Assistant — entities after setup
 
-Frigate auto-wykryje kamerę i utworzy w HA:
+Frigate auto-discovers the camera and creates in HA:
 
-| Entity | Typ | Co pokazuje |
+| Entity | Type | What it shows |
 |---|---|---|
-| `sensor.parking_parking_spot_car` | sensor | licznik aut w strefie (0, 1, 2...) — **używany w automation** |
-| `binary_sensor.parking_motion` | binary | true gdy jakikolwiek ruch w kadrze |
-| `binary_sensor.parking_person_occupied` | binary | true gdy człowiek w kadrze |
-| `binary_sensor.parking_car_occupied` | binary | true gdy auto w kadrze (cały kadr) |
-| `camera.parking` | camera | live podgląd MJPEG |
-| `camera.parking_person` | camera | ostatni snapshot z eventem person |
-| `image.parking_parking_spot` | image | snapshot strefy z bounding boxami |
-| `switch.parking_detect` | switch | włącz/wyłącz detection |
-| `switch.parking_recordings` | switch | włącz/wyłącz nagrywanie |
-| `update.parking_camera_firmware` | update | (jeśli kamera obsługuje update via ONVIF) |
+| `sensor.parking_parking_spot_car` | sensor | car count in zone (0, 1, 2...) — **used in automation** |
+| `binary_sensor.parking_motion` | binary | true when any motion in frame |
+| `binary_sensor.parking_person_occupied` | binary | true when person in frame |
+| `binary_sensor.parking_car_occupied` | binary | true when car in frame (whole frame) |
+| `camera.parking` | camera | live MJPEG preview |
+| `camera.parking_person` | camera | last snapshot with person event |
+| `image.parking_parking_spot` | image | zone snapshot with bounding boxes |
+| `switch.parking_detect` | switch | enable/disable detection |
+| `switch.parking_recordings` | switch | enable/disable recording |
+| `update.parking_camera_firmware` | update | (if camera supports update via ONVIF) |
 
 ---
 
-## Wymagania
+## Requirements
 
-- Komputer/serwer z Dockerem (Linux/Windows/macOS) w tej samej sieci LAN co kamera
-- Kamera Reolink (dowolny model RLC/Duo/TrackMix/Argus/E1/NVR)
-- 1 GB wolnej RAM, 30 GB wolnego dysku (do nagrywania 7 dni)
-- WhatsApp na telefonie + APIKEY z CallMeBot (instrukcja niżej)
+- Computer/server with Docker (Linux/Windows/macOS) on the same LAN as the camera
+- Reolink camera (any model: RLC/Duo/TrackMix/Argus/E1/NVR)
+- 1 GB free RAM, 30 GB free disk (for 7-day recording retention)
+- WhatsApp on phone + APIKEY from CallMeBot (instructions below)
 
 ---
 
-## Krok 1 — Przygotuj kamerę Reolink
+## Step 1 — Prepare the Reolink camera
 
-W aplikacji Reolink lub web UI kamery:
+In the Reolink app or camera web UI:
 
-1. **Settings → Network → Advanced → Port Settings** — włącz **RTSP** (port 554)
+1. **Settings → Network → Advanced → Port Settings** — enable **RTSP** (port 554)
 2. **Settings → User → Add User**
    - Username: `frigate`
-   - Permission: `Viewer` (tylko podgląd)
-   - Hasło: dowolne, zanotuj
+   - Permission: `Viewer` (view only)
+   - Password: anything, write it down
 3. **Settings → Display → Stream**
-   - Main Stream: 1080p, h264 (jeśli dostępne)
-   - Sub Stream: 480p lub 640×360, h264, ~5 fps
-4. **Zanotuj IP kamery** (np. `192.168.1.100`)
+   - Main Stream: 1080p, h264 (if available)
+   - Sub Stream: 480p or 640×360, h264, ~5 fps
+4. **Note the camera IP** (e.g., `192.168.1.100`)
 
 ---
 
-## Krok 2 — WhatsApp APIKEY (CallMeBot, **bezpłatne**)
+## Step 2 — WhatsApp APIKEY (CallMeBot, **free**)
 
-**CallMeBot** to darmowa usługa do wysyłania wiadomości WhatsApp przez API. Bez rejestracji, bez kary za użycie, ~99.5% niezawodność dostarczenia.
+**CallMeBot** is a free service to send WhatsApp messages via API. No registration, no usage fees, ~99.5% delivery reliability.
 
-1. **Dodaj do kontaktów telefonu** numer **+34 644 11 11 11** (nazwa np. "CallMeBot")
-2. Otwórz **WhatsApp** → CallMeBot → wyślij dokładnie tę wiadomość:
+1. **Add to phone contacts** the number **+34 644 11 11 11** (e.g., "CallMeBot")
+2. Open **WhatsApp** → CallMeBot → send exactly this message:
    ```
    I allow callmebot to send me messages
    ```
-3. Poczekaj ~1-2 min na odpowiedź. Dostaniesz:
+3. Wait ~1-2 min for the reply. You will receive:
    ```
    API Activated for your phone number.
    Your APIKEY is 1234567
    ```
-4. **Zanotuj APIKEY** (7 cyfr)
+4. **Note the APIKEY** (7 digits)
 
-**Test ręczny** (opcjonalne, sprawdza czy działa):
+**Manual test** (optional, checks if it works):
 ```bash
 curl "https://api.callmebot.com/whatsapp.php?phone=48501234567&text=test&apikey=1234567"
 ```
-Powinno przyjść "test" na WhatsApp.
+"test" should arrive on WhatsApp.
 
 ---
 
-## Krok 3 — Pobierz i uruchom stack
+## Step 3 — Download and run the stack
 
 ```bash
-# Skopiuj cały katalog parking-pack na docker host
-
-cd parking-pack
+git clone https://github.com/marczyn/parking-empty-alert.git
+cd parking-empty-alert
 bash scripts/setup.sh
 ```
 
-Skrypt zapyta o IP kamery, login, hasło — i sam uruchomi wszystko.
+The script will ask for camera IP, login, password — and start everything itself.
 
-Po zakończeniu zobaczysz:
+After completion you will see:
 ```
-✅ GOTOWE!
+✅ DONE!
   Frigate UI:        http://localhost:5000
   Home Assistant:    http://localhost:8123
 ```
 
 ---
 
-## Krok 3 — Narysuj strefę "parking_spot" w Frigate UI
+## Step 4 — Draw the "parking_spot" zone in Frigate UI
 
-To **kluczowy** krok — definiujesz dokładnie gdzie ma stać auto.
+This is the **critical** step — you define exactly where the car should be parked.
 
-1. Otwórz **http://localhost:5000** → kliknij kamerę **parking**
-2. Kliknij **Debug** w lewym menu
-3. Kliknij **🎛 Settings** → **Edit Zones**
-4. Narysuj **poligon** wokół miejsca parkingowego (4 lub więcej punktów):
-   - Klikaj punkty tworząc kontur
-   - Skup się na asfalcie miejsca, nie na chodnik za nim
-   - Avoid: ulica, sąsiednie miejsca, drzewa
-5. **Save** → Frigate pokaże skopiowane współrzędne w popup
-6. **Skopiuj współrzędne** i wklej do `config/frigate.yml`:
+1. Open **http://localhost:5000** → click camera **parking**
+2. Click **Debug** in the left menu
+3. Click **🎛 Settings** → **Edit Zones**
+4. Draw a **polygon** around the parking spot (4 or more points):
+   - Click points to form the contour
+   - Focus on the spot asphalt, not the sidewalk behind it
+   - Avoid: street, adjacent spots, trees
+5. **Save** → Frigate will show copied coordinates in a popup
+6. **Copy the coordinates** and paste into `config/frigate.yml`:
    ```yaml
    zones:
      parking_spot:
-       coordinates: <TUTAJ WKLEJ — np. 0.32,0.48,0.71,0.45,0.74,0.83,0.30,0.85>
+       coordinates: <PASTE HERE — e.g., 0.32,0.48,0.71,0.45,0.74,0.83,0.30,0.85>
    ```
 7. Restart Frigate:
    ```bash
@@ -246,151 +245,174 @@ To **kluczowy** krok — definiujesz dokładnie gdzie ma stać auto.
 
 ---
 
-## Krok 5 — Setup Home Assistant (5 minut)
+## Step 5 — Set up Home Assistant (5 minutes)
 
-1. Otwórz **http://localhost:8123**
-2. Pierwszy raz: utworzenie konta admin (dowolny login/hasło)
+1. Open **http://localhost:8123**
+2. First time: create admin account (any login/password)
 3. **Settings → Devices & Services → Add Integration → "Frigate"**
    - URL: `http://frigate:5000`
-   - (Reszta opcji domyślnie)
-4. Frigate auto-wykryje kamerę, zone, obiekty — pojawi się ~10 entities, w tym:
-   - `sensor.parking_parking_spot_car` ← **ten** używamy w automation
+   - (Other options default)
+4. Frigate will auto-discover the camera, zone, objects — about 10 entities will appear, including:
+   - `sensor.parking_parking_spot_car` ← **this one** is used in automation
    - `binary_sensor.parking_motion`
    - `camera.parking`
    - etc.
-5. WhatsApp notify jest już skonfigurowany przez setup.sh w `configuration.yaml` jako `notify.whatsapp_parking` — **nic więcej nie trzeba robić**.
+5. WhatsApp notify is already configured by setup.sh in `configuration.yaml` as `notify.whatsapp_parking` — **nothing more to do**.
 6. **Settings → Server Controls → Restart**
 
 ---
 
-## Krok 5 — Test (KLUCZOWY!)
+## Step 6 — Test (CRITICAL!)
 
-1. **Sprawdź czy stan się aktualizuje:**
-   - Otwórz **Developer Tools → States** w HA
-   - Znajdź `sensor.parking_parking_spot_car`
-   - **Gdy auto stoi w miejscu** → wartość `1` (lub więcej)
-   - **Gdy auto odjedzie** → wartość `0` po ~2-5 s
+1. **Check that state updates:**
+   - Open **Developer Tools → States** in HA
+   - Find `sensor.parking_parking_spot_car`
+   - **When car is parked** → value `1` (or more)
+   - **When car leaves** → value `0` within ~2-5 s
 
 2. **Test push notification:**
-   - Auto stoi → po 2 min wjazd auta i wyjazd → poczekaj 2 min → telefon powinien dostać alert "🅿️ Miejsce wolne"
+   - Car parked → after 2 min car arrives and leaves → wait 2 min → phone should receive "🅿️ Spot free" alert
 
-3. **Jeśli false positive (alert kiedy auto stoi):**
-   - Sprawdź czy zone obejmuje cały samochód (nie tylko maskę)
-   - Zwiększ `inertia` w `frigate.yml` → `5` (zamiast `3`)
-   - Sprawdź snapshot w Frigate Events czy YOLO faktycznie wykryło auto
+3. **If false positive (alert while car is parked):**
+   - Check that the zone covers the whole car (not just the hood)
+   - Increase `inertia` in `frigate.yml` → `5` (instead of `3`)
+   - Check the snapshot in Frigate Events whether YOLO actually detected the car
 
-4. **Jeśli alert nie przychodzi (auto odjeżdża, brak push):**
-   - Sprawdź czy `sensor.parking_parking_spot_car` faktycznie spada do `0`
-   - Sprawdź czy automation jest **enabled** (Settings → Automations → toggle on)
-   - Test ręczny: Developer Tools → Services → notify.mobile_app_... → wyślij testowy
+4. **If alert doesn't arrive (car leaves, no push):**
+   - Check whether `sensor.parking_parking_spot_car` actually drops to `0`
+   - Check that automation is **enabled** (Settings → Automations → toggle on)
+   - Manual test: Developer Tools → Services → notify.whatsapp_parking → send test
 
 ---
 
-## Pliki w paczce
+## Files in the package
 
 ```
-parking-pack/
-├── docker-compose.yml          # główny compose stack
-├── .env.example                # template dla haseł (NIE commituj .env do git!)
-├── README.md                   # ten plik
+parking-empty-alert/
+├── docker-compose.yml          # main compose stack
+├── .env.example                # template for secrets (don't commit .env to git!)
+├── README.md                   # this file
+├── LICENSE                     # MIT
+├── .github/workflows/ci.yml    # CI: validates YAMLs + compose + shellcheck
 ├── scripts/
-│   └── setup.sh                # automatyczna konfiguracja
-└── config/
-    ├── mosquitto.conf          # MQTT broker config
-    ├── frigate.yml             # ⭐ tu definiujesz kamerę + zone
-    └── homeassistant/
-        ├── configuration.yaml  # HA core config
-        ├── automations.yaml    # ⭐ tu jest automation "Parking wolne"
-        ├── scripts.yaml
-        ├── scenes.yaml
-        └── secrets.yaml        # synced z .env (auto przez setup.sh)
+│   └── setup.sh                # automated configuration
+├── config/
+│   ├── mosquitto.conf          # MQTT broker config
+│   ├── frigate.yml             # ⭐ camera + zone definition here
+│   └── homeassistant/
+│       ├── configuration.yaml  # HA core config
+│       ├── automations.yaml    # ⭐ "Parking free" automation here
+│       ├── scripts.yaml
+│       ├── scenes.yaml
+│       └── secrets.yaml        # synced from .env (auto by setup.sh)
+└── examples/
+    └── multi-camera/           # config for N parking spots in parallel
+        ├── frigate.yml
+        ├── automations.yaml
+        └── README.md
 ```
 
 ---
 
-## Tuning niezawodności
+## Reliability tuning
 
 **Detection sensitivity** — `config/frigate.yml`:
 ```yaml
 objects:
   filters:
     car:
-      min_area: 1500     # zwiększ jeśli false positives od dalekich aut
-      min_score: 0.5     # zwiększ do 0.7 dla mniej false positive
+      min_area: 1500     # increase if false positives from distant cars
+      min_score: 0.5     # increase to 0.7 for fewer false positives
       threshold: 0.7     # confidence threshold
 ```
 
 **Zone exit delay** — `config/homeassistant/automations.yaml`:
 ```yaml
 for:
-  minutes: 2             # zwiększ do 3-5 min jeśli za szybko reaguje
+  minutes: 2             # increase to 3-5 min if it reacts too fast
 ```
 
 **Stationary object persistence** — `config/frigate.yml`:
 ```yaml
 stationary:
   max_frames:
-    default: 0           # 0 = nieskończenie — KLUCZOWE dla parkowania
+    default: 0           # 0 = forever — CRITICAL for parking
 ```
 
 ---
 
-## Hardware acceleration (opcjonalnie — większa wydajność, niższe CPU)
+## Hardware acceleration (optional — higher performance, lower CPU)
 
-| Twój sprzęt | W `frigate.yml` zostaw `hwaccel_args: ...` |
+| Your hardware | In `frigate.yml` leave `hwaccel_args: ...` |
 |---|---|
-| Intel CPU z iGPU (Haswell+) | `preset-vaapi` (już ustawione) |
+| Intel CPU with iGPU (Haswell+) | `preset-vaapi` (already set) |
 | NVIDIA GPU + CUDA driver | `preset-nvidia` |
 | Raspberry Pi 4/5 | `preset-rpi-64-h264` |
 | Rockchip (Orange Pi, NanoPi) | `preset-rkmpp` |
-| Coral USB TPU (najszybsze!) | dodaj `devices: [/dev/bus/usb:/dev/bus/usb]` w compose, zmień detector na `edgetpu` |
-| Nic z powyższego | usuń linię `hwaccel_args` — będzie CPU only |
+| Coral USB TPU (fastest!) | add `devices: [/dev/bus/usb:/dev/bus/usb]` in compose, change detector to `edgetpu` |
+| None of the above | remove `hwaccel_args` line — will be CPU only |
 
 ---
 
-## Często zadawane problemy
+## Multi-camera setup
 
-**Problem:** Frigate nie startuje, log: `ffmpeg: connection refused`
-→ Zły RTSP path. Spróbuj w `config/frigate.yml` zakomentować `h264Preview_01_*` i odkomentować `h265Preview_01_*` (jeśli kamera HEVC).
-
-**Problem:** `sensor.parking_parking_spot_car` zawsze pokazuje `0` mimo że auto stoi
-→ Zone narysowana w nieodpowiednim miejscu (auto stoi poza poligon). Otwórz Frigate → Debug → zaznacz "Bounding boxes" + "Zones" — zobaczysz gdzie YOLO widzi auto i gdzie jest zone.
-
-**Problem:** Auto stoi, ale licznik fluktuuje 0/1/0
-→ Tracking się resetuje. Zwiększ w `frigate.yml`:
-```yaml
-detect:
-  max_disappeared: 50    # z 25 do 50 — 10s tolerancji
-```
-
-**Problem:** Po reboocie host'a Frigate nie wstaje
-→ `docker compose ps` — sprawdź czy `restart: always` zachowane. Jeśli nie, dodaj.
-
-**Problem:** Telefon nie dostaje push notification
-→ Sprawdź:
-  - Settings → Mobile App → twój telefon → Companion App ustawienia → Push notification permission włączone
-  - HA dostępny z internetu? (jeśli nie używasz Nabu Casa lub VPN, push działa TYLKO w LAN gdzie HA jest dostępny)
-
----
-
-## Aktualizacje
+For 2+ parking spots use the example in `examples/multi-camera/`:
 
 ```bash
-cd parking-pack
-docker compose pull        # pobiera nowe wersje obrazów
-docker compose up -d       # restart z nowymi obrazami
+cp examples/multi-camera/frigate.yml      config/frigate.yml
+cp examples/multi-camera/automations.yaml config/homeassistant/automations.yaml
+docker compose restart frigate
+```
+
+See `examples/multi-camera/README.md` for hardware sizing tables.
+
+---
+
+## Common issues
+
+**Problem:** Frigate doesn't start, log: `ffmpeg: connection refused`
+→ Wrong RTSP path. Try commenting `h264Preview_01_*` in `config/frigate.yml` and uncommenting `h265Preview_01_*` (if HEVC camera).
+
+**Problem:** `sensor.parking_parking_spot_car` always shows `0` despite parked car
+→ Zone drawn in wrong place (car is outside the polygon). Open Frigate → Debug → enable "Bounding boxes" + "Zones" — you'll see where YOLO sees the car and where the zone is.
+
+**Problem:** Car is parked but counter fluctuates 0/1/0
+→ Tracking is resetting. Increase in `frigate.yml`:
+```yaml
+detect:
+  max_disappeared: 50    # from 25 to 50 — 10s tolerance
+```
+
+**Problem:** After host reboot Frigate doesn't come up
+→ `docker compose ps` — check if `restart: always` is preserved. If not, add it.
+
+**Problem:** Phone doesn't receive WhatsApp
+→ Check:
+  - CallMeBot APIKEY is correct (test with curl)
+  - Phone number format: `48xxxxxxxxx` (NO `+`, no spaces, no dashes)
+  - CallMeBot rate limit: 1 message per minute per number
+
+---
+
+## Updates
+
+```bash
+cd parking-empty-alert
+git pull
+docker compose pull        # pull new image versions
+docker compose up -d       # restart with new images
 ```
 
 ---
 
-## Backup config
+## Config backup
 
 ```bash
 tar czf parking-backup-$(date +%Y%m%d).tar.gz config/ .env docker-compose.yml
 ```
 
-Trzymaj backup w bezpiecznym miejscu (cloud, dysk zewn.).
+Keep backup in a safe place (cloud, external drive).
 
 ---
 
-**Pytania?** Frigate dokumentacja: https://docs.frigate.video
+**Questions?** Frigate documentation: https://docs.frigate.video

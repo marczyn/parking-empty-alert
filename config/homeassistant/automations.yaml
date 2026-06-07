@@ -1,16 +1,16 @@
 ###############################################################################
-# AUTOMATION: 🅿️ Miejsce parkingowe WOLNE → WhatsApp
+# AUTOMATION: 🅿️ Parking spot EMPTY → WhatsApp
 #
-# Wyzwala się gdy:
-#   - Frigate raportuje 0 samochodów w strefie "parking_spot"
-#   - Stan trwa nieprzerwanie 2 minuty (filtr anti-blink)
+# Triggers when:
+#   - Frigate reports 0 cars in zone "parking_spot"
+#   - State persists for 2 minutes (anti-blink filter — driver passing through)
 #
-# Akcja:
-#   - WhatsApp wiadomość przez CallMeBot
+# Action:
+#   - WhatsApp message via CallMeBot
 ###############################################################################
 - id: parking_spot_free_alert
-  alias: "🅿️ Miejsce parkingowe wolne → WhatsApp"
-  description: "WhatsApp alert gdy miejsce zwolnione przez 2 min"
+  alias: "🅿️ Parking spot empty → WhatsApp"
+  description: "WhatsApp alert when spot has been empty for 2 min"
   mode: single
   trigger:
     - platform: numeric_state
@@ -22,16 +22,16 @@
     - service: notify.whatsapp_parking
       data:
         message: >
-          🅿️ Miejsce parkingowe WOLNE!
-          Możesz parkować — zwolniło się 2 min temu.
-          Czas: {{ now().strftime('%H:%M') }}
+          🅿️ Parking spot FREE!
+          You can park — became free 2 min ago.
+          Time: {{ now().strftime('%H:%M') }}
 
 ###############################################################################
-# AUTOMATION: 🚗 Miejsce parkingowe ZAJĘTE → WhatsApp (opcjonalne)
-# Domyślnie wyłączone — odkomentuj jeśli chcesz też alert "ktoś zaparkował"
+# AUTOMATION: 🚗 Parking spot OCCUPIED → WhatsApp (optional)
+# Disabled by default — uncomment if you also want "someone parked" alert
 ###############################################################################
 # - id: parking_spot_taken_alert
-#   alias: "🚗 Miejsce parkingowe zajęte → WhatsApp"
+#   alias: "🚗 Parking spot occupied → WhatsApp"
 #   mode: single
 #   trigger:
 #     - platform: numeric_state
@@ -43,5 +43,5 @@
 #     - service: notify.whatsapp_parking
 #       data:
 #         message: >
-#           🚗 Auto zaparkowało na miejscu.
-#           Czas: {{ now().strftime('%H:%M') }}
+#           🚗 A car parked in the spot.
+#           Time: {{ now().strftime('%H:%M') }}

@@ -1,7 +1,7 @@
 #!/bin/bash
 ###############################################################################
 # Parking Empty Alert — Setup Script
-# Uruchom:  bash setup.sh
+# Run:  bash setup.sh
 ###############################################################################
 set -euo pipefail
 
@@ -9,14 +9,14 @@ cd "$(dirname "$0")/.."
 PROJ=$(pwd)
 
 # ─────────────────────────────────────────────────────────────
-# 1. Sprawdź Docker
+# 1. Check Docker
 # ─────────────────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
-  echo "❌ Docker nie jest zainstalowany. Zainstaluj: https://docs.docker.com/get-docker/"
+  echo "❌ Docker not installed. Install: https://docs.docker.com/get-docker/"
   exit 1
 fi
 if ! docker compose version &>/dev/null && ! docker-compose version &>/dev/null; then
-  echo "❌ Docker Compose nie jest dostępny. Zaktualizuj Docker."
+  echo "❌ Docker Compose not available. Update Docker."
   exit 1
 fi
 echo "✓ Docker OK"
@@ -27,26 +27,26 @@ echo "✓ Docker OK"
 if [ ! -f .env ]; then
   echo
   echo "════════════════════════════════════════════════════"
-  echo "  KROK 1: Konfiguracja kamery"
+  echo "  STEP 1: Camera configuration"
   echo "════════════════════════════════════════════════════"
-  read -r -p "IP kamery Reolink (np. 192.168.1.100): " CAMERA_IP
-  read -r -p "Login do kamery Reolink (utwórz nowego usera 'frigate' w Reolink UI z permission Viewer): " RTSP_USER
-  read -r -s -p "Hasło tego konta: " RTSP_PASSWORD; echo
+  read -r -p "Reolink camera IP (e.g., 192.168.1.100): " CAMERA_IP
+  read -r -p "Reolink username (create a new 'frigate' user in Reolink UI with Viewer permission): " RTSP_USER
+  read -r -s -p "Password for this account: " RTSP_PASSWORD; echo
   echo
   MQTT_PASSWORD=$(openssl rand -base64 24 2>/dev/null | tr -d '/+=' | head -c 20 || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 20)
 
   echo
   echo "════════════════════════════════════════════════════"
-  echo "  KROK 2: WhatsApp (CallMeBot — bezpłatne)"
+  echo "  STEP 2: WhatsApp (CallMeBot — free)"
   echo "════════════════════════════════════════════════════"
-  echo "Jeśli jeszcze NIE masz APIKEY od CallMeBot:"
-  echo "  1. Dodaj +34 644 11 11 11 do kontaktów w telefonie (jako 'CallMeBot')"
-  echo "  2. Otwórz WhatsApp i wyślij do tego kontaktu:"
+  echo "If you do NOT have a CallMeBot APIKEY yet:"
+  echo "  1. Add +34 644 11 11 11 to phone contacts (as 'CallMeBot')"
+  echo "  2. Open WhatsApp and send to this contact:"
   echo "     I allow callmebot to send me messages"
-  echo "  3. Poczekaj na odpowiedź ~1 min — będzie zawierać APIKEY (7 cyfr)"
+  echo "  3. Wait ~1 min for the reply — it will contain the APIKEY (7 digits)"
   echo
-  read -r -p "Numer telefonu (z kierunkowym, BEZ +; np. 48501234567): " WHATSAPP_PHONE
-  read -r -p "CallMeBot APIKEY (7 cyfr): " WHATSAPP_APIKEY
+  read -r -p "Phone number (with country code, NO +; e.g., 48501234567): " WHATSAPP_PHONE
+  read -r -p "CallMeBot APIKEY (7 digits): " WHATSAPP_APIKEY
 
   cat > .env <<EOF
 CAMERA_IP=$CAMERA_IP
@@ -58,7 +58,7 @@ WHATSAPP_PHONE=$WHATSAPP_PHONE
 WHATSAPP_APIKEY=$WHATSAPP_APIKEY
 EOF
   chmod 600 .env
-  echo "✓ .env utworzony"
+  echo "✓ .env created"
 
   # Update HA secrets.yaml
   cat > config/homeassistant/secrets.yaml <<EOF
@@ -70,11 +70,11 @@ whatsapp_apikey: "$WHATSAPP_APIKEY"
 EOF
   chmod 600 config/homeassistant/secrets.yaml
 
-  # Podstaw CAMERA_IP w frigate.yml
+  # Substitute CAMERA_IP in frigate.yml
   sed -i.bak "s/CAMERA_IP_PLACEHOLDER/$CAMERA_IP/g" config/frigate.yml
   rm -f config/frigate.yml.bak
 else
-  echo "✓ .env już istnieje (pomijam pytania — usuń .env żeby zacząć od nowa)"
+  echo "✓ .env already exists (skipping prompts — delete .env to start over)"
 fi
 
 source .env
@@ -84,7 +84,7 @@ source .env
 # ─────────────────────────────────────────────────────────────
 echo
 echo "════════════════════════════════════════════════════"
-echo "  KROK 3: Generuję password MQTT"
+echo "  STEP 3: Generate MQTT password"
 echo "════════════════════════════════════════════════════"
 docker run --rm -v "$PROJ/config:/mosquitto/config" eclipse-mosquitto:2.0 \
   mosquitto_passwd -c -b /mosquitto/config/passwd "$MQTT_USER" "$MQTT_PASSWORD"
@@ -95,36 +95,37 @@ echo "✓ MQTT passwd OK"
 # ─────────────────────────────────────────────────────────────
 echo
 echo "════════════════════════════════════════════════════"
-echo "  KROK 4: Test RTSP do kamery"
+echo "  STEP 4: Test RTSP to camera"
 echo "════════════════════════════════════════════════════"
 RTSP_URL="rtsp://$RTSP_USER:$RTSP_PASSWORD@$CAMERA_IP:554/h264Preview_01_sub"
 echo "Test URL: rtsp://$RTSP_USER:***@$CAMERA_IP:554/h264Preview_01_sub"
 if docker run --rm linuxserver/ffmpeg:latest \
     -rtsp_transport tcp -i "$RTSP_URL" \
     -frames:v 1 -f null - 2>&1 | grep -q "Stream #"; then
-  echo "✓ RTSP działa"
+  echo "✓ RTSP works"
 else
-  echo "⚠ RTSP nie odpowiedział na h264Preview_01_sub"
-  echo "   Spróbuj alternatywne paths — sprawdź config/frigate.yml komentarze"
+  echo "⚠ RTSP did not respond on h264Preview_01_sub"
+  echo "   Try alternative paths — check config/frigate.yml comments"
+  echo "   (h265Preview_01_sub for HEVC, or Preview_01_main for older models)"
 fi
 
 # ─────────────────────────────────────────────────────────────
-# 5. Test WhatsApp (smoke test)
+# 5. WhatsApp smoke test
 # ─────────────────────────────────────────────────────────────
 echo
 echo "════════════════════════════════════════════════════"
-echo "  KROK 5: Test WhatsApp"
+echo "  STEP 5: WhatsApp test"
 echo "════════════════════════════════════════════════════"
-TEST_MSG="parking-pack setup test — jeśli widzisz tę wiadomość, alerty działają!"
+TEST_MSG="parking-pack setup test — if you see this message, alerts work!"
 WA_RESP=$(curl -sk --max-time 30 -G \
   --data-urlencode "phone=$WHATSAPP_PHONE" \
   --data-urlencode "text=$TEST_MSG" \
   --data-urlencode "apikey=$WHATSAPP_APIKEY" \
   "https://api.callmebot.com/whatsapp.php")
 if echo "$WA_RESP" | grep -qiE "message queued|sent"; then
-  echo "✓ WhatsApp test wysłany — sprawdź telefon"
+  echo "✓ WhatsApp test sent — check phone"
 else
-  echo "⚠ WhatsApp może nie działać — odpowiedź CallMeBot:"
+  echo "⚠ WhatsApp may not work — CallMeBot response:"
   echo "$WA_RESP" | head -c 500
 fi
 
@@ -133,16 +134,16 @@ fi
 # ─────────────────────────────────────────────────────────────
 echo
 echo "════════════════════════════════════════════════════"
-echo "  KROK 6: Uruchamiam stack Docker"
+echo "  STEP 6: Start Docker stack"
 echo "════════════════════════════════════════════════════"
 docker compose up -d
 
 echo
 echo "════════════════════════════════════════════════════"
-echo "✅ GOTOWE!"
+echo "✅ DONE!"
 echo "════════════════════════════════════════════════════"
 echo
 echo "  Frigate UI:        http://localhost:5000"
 echo "  Home Assistant:    http://localhost:8123"
 echo
-echo "  Następne kroki — patrz README.md (sekcja 'Po starcie')"
+echo "  Next steps — see README.md (section 'Step 4 — Draw the zone')"

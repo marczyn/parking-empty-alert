@@ -1,19 +1,19 @@
 ###############################################################################
 # Parking Empty Alert — Frigate + MQTT + Home Assistant
-# Universal stack — działa na każdym hoście z Dockerem (Linux/Windows/macOS)
-# Hardware: brak wymagań specjalnych (CPU only, optional Coral USB)
+# Universal stack — works on any Docker host (Linux/Windows/macOS)
+# Hardware: no special requirements (CPU only, optional Coral USB)
 #
 # Quick start:
-#   1. Skopiuj .env.example -> .env i wpisz hasła + IP kamery
+#   1. Copy .env.example -> .env and fill in passwords + camera IP
 #   2. docker compose up -d
-#   3. Otwórz Frigate UI:  http://<host>:5000
-#   4. Otwórz HA UI:        http://<host>:8123
+#   3. Open Frigate UI:  http://<host>:5000
+#   4. Open HA UI:        http://<host>:8123
 ###############################################################################
 
 services:
 
   # ─────────────────────────────────────────────────────────────
-  # MQTT broker — komunikacja Frigate ↔ Home Assistant
+  # MQTT broker — communication Frigate ↔ Home Assistant
   # ─────────────────────────────────────────────────────────────
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -35,11 +35,11 @@ services:
     restart: always
     depends_on:
       - mosquitto
-    shm_size: 256mb          # zwiększ do 512mb jeśli >1 kamera
-    # Odkomentuj jeśli masz Coral USB TPU:
+    shm_size: 256mb          # increase to 512mb if >1 camera
+    # Uncomment if you have Coral USB TPU:
     # devices:
     #   - /dev/bus/usb:/dev/bus/usb
-    # Odkomentuj jeśli masz NVIDIA GPU:
+    # Uncomment if you have NVIDIA GPU:
     # deploy:
     #   resources:
     #     reservations:
@@ -56,10 +56,10 @@ services:
       - type: tmpfs
         target: /tmp/cache
         tmpfs:
-          size: 1000000000   # 1GB cache w RAM
+          size: 1000000000   # 1GB cache in RAM
     ports:
       - "5000:5000"          # Frigate UI
-      - "8554:8554"          # RTSP restream (opcjonalnie)
+      - "8554:8554"          # RTSP restream (optional)
       - "8555:8555/tcp"      # WebRTC TCP
       - "8555:8555/udp"      # WebRTC UDP
 
@@ -73,7 +73,7 @@ services:
     depends_on:
       - mosquitto
       - frigate
-    network_mode: host         # potrzebne dla discovery + Companion App
+    network_mode: host         # needed for discovery + Companion App
     privileged: true
     environment:
       TZ: "Europe/Warsaw"

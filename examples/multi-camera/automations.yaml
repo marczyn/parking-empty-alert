@@ -1,0 +1,58 @@
+###############################################################################
+# Multi-camera automations — alert per zone
+###############################################################################
+
+# ─── PARKING A: spot #1 ───
+- id: parking_a_free
+  alias: "🅿️ Spot A → free"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_a_spot_a_car
+      below: 1
+      for: {minutes: 2}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🅿️ Spot A FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── PARKING B: spot #2 ───
+- id: parking_b_free
+  alias: "🅿️ Spot B → free"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_b_spot_b_car
+      below: 1
+      for: {minutes: 2}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🅿️ Spot B FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── GARAGE ───
+- id: garage_free
+  alias: "🚗 Garage → free"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.garage_garage_spot_car
+      below: 1
+      for: {minutes: 2}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: "🚗 Garage FREE. Time: {{ now().strftime('%H:%M') }}"
+
+# ─── BONUS: hourly "how many spots free now" summary ───
+- id: parking_summary_hourly
+  alias: "📊 Hourly parking summary"
+  trigger:
+    - platform: time_pattern
+      hours: "*"
+      minutes: 0
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          📊 {{ now().strftime('%H:%M') }} - Parking status:
+          A: {{ "free ✓" if states('sensor.parking_a_spot_a_car') == '0' else "occupied" }}
+          B: {{ "free ✓" if states('sensor.parking_b_spot_b_car') == '0' else "occupied" }}
+          Garage: {{ "free ✓" if states('sensor.garage_garage_spot_car') == '0' else "occupied" }}
