@@ -12,6 +12,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.15] — 2026-06-07
+
+### Fixed (Round 15 code audit — 3 gaps, no regressions)
+
+#### 🟡 Important
+
+- **`config/passwd` missing on fresh checkout** (deferred from rounds 5+).
+  Docker would create empty DIR breaking Mosquitto. Added `config/passwd.example`
+  (committed placeholder) + setup.sh bootstrap copies it to `config/passwd`
+  before mounting.
+
+- **`examples/` directory had no README index** routing to sub-directories.
+  Users browsing on GitHub couldn't easily compare options. Added top-level
+  `examples/README.md` with: use-case table, combinable example notes
+  (LPR + multi-camera, triple compose override syntax), order-of-operations.
+
+- **No documentation for triple compose override** (Docker Desktop + LPR).
+  Macowin + LPR override combo wasn't documented. Added explicit command
+  in `examples/README.md`.
+
+[1.3.15]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.15
+
 ## [1.3.14] — 2026-06-07
 
 ### Fixed (Round 14 code audit — 9 gaps, no regressions)
@@ -806,7 +828,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.14...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.15...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

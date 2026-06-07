@@ -24,6 +24,10 @@ if ! command -v docker &>/dev/null; then
   exit 1
 fi
 
+# Bootstrap: ensure config/passwd exists so docker-compose mount works.
+# Setup.sh below replaces it with hashes; this just prevents fresh-checkout fail.
+[ -f config/passwd ] || cp config/passwd.example config/passwd 2>/dev/null || touch config/passwd
+
 # Install git pre-commit hook (one-shot — idempotent)
 if [ -d .git ] && [ ! -x .git/hooks/pre-commit ]; then
   bash scripts/install-git-hooks.sh 2>/dev/null || true

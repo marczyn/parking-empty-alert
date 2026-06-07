@@ -1,0 +1,11 @@
+## TEMPLATE — DO NOT EDIT directly.
+##
+## This empty placeholder is committed so docker-compose.yml has something
+## to bind-mount even on fresh checkout (Docker would otherwise create an
+## empty DIRECTORY, breaking Mosquitto).
+##
+## setup.sh REPLACES this file with `mosquitto_passwd`-generated hashes.
+##
+## To generate manually:
+##   docker run --rm -v $PWD/config:/mosquitto/config eclipse-mosquitto:2.0 \
+##     mosquitto_passwd -c -b /mosquitto/config/passwd frigate YOUR_PASSWORD
