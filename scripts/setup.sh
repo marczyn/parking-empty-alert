@@ -96,10 +96,63 @@ EOF
   sed -i.bak "s/DOCKER_HOST_IP/$DOCKER_HOST_IP/g" config/homeassistant/ui-lovelace.yaml
   rm -f config/homeassistant/ui-lovelace.yaml.bak
 else
-  echo "✓ .env already exists (skipping prompts — delete .env to start over)"
+  echo "✓ .env already exists. Checking for missing keys (added in newer versions)..."
+  # Load existing values
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+
+  # Check for keys added in v1.3.2+
+  MISSING_KEYS=()
+  [ -z "${TZ:-}" ] && MISSING_KEYS+=("TZ")
+
+  if [ ${#MISSING_KEYS[@]} -gt 0 ]; then
+    echo
+    echo "⚠ Your .env is missing keys added in newer versions: ${MISSING_KEYS[*]}"
+    echo "Please add the following lines to .env, then re-run setup.sh:"
+    echo
+    for k in "${MISSING_KEYS[@]}"; do
+      case "$k" in
+        TZ)
+          DEFAULT_TZ=$(cat /etc/timezone 2>/dev/null || echo "UTC")
+          echo "  TZ=$DEFAULT_TZ"
+          ;;
+      esac
+    done
+    echo
+    read -r -p "Add these now and proceed? [Y/n]: " ADD_MISSING
+    if [ "${ADD_MISSING,,}" != "n" ]; then
+      for k in "${MISSING_KEYS[@]}"; do
+        case "$k" in
+          TZ) echo "TZ=$(cat /etc/timezone 2>/dev/null || echo UTC)" >> .env ;;
+        esac
+      done
+      echo "✓ Keys added to .env"
+      # Re-source the updated values
+      set -a
+      # shellcheck disable=SC1091
+      source .env
+      set +a
+    fi
+  fi
+
+  # Auto-detect DOCKER_HOST_IP if not done before (for ui-lovelace substitution)
+  if grep -q "DOCKER_HOST_IP" config/homeassistant/ui-lovelace.yaml 2>/dev/null; then
+    DETECTED_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ip route get 1.1.1.1 2>/dev/null | awk '/src/ {print $7}')
+    if [ -n "$DETECTED_IP" ]; then
+      sed -i.bak "s/DOCKER_HOST_IP/$DETECTED_IP/g" config/homeassistant/ui-lovelace.yaml
+      rm -f config/homeassistant/ui-lovelace.yaml.bak
+      echo "✓ Substituted DOCKER_HOST_IP → $DETECTED_IP in ui-lovelace.yaml"
+    fi
+  fi
 fi
 
+# Ensure env is loaded for both fresh + re-run paths
+set -a
+# shellcheck disable=SC1091
 source .env
+set +a
 
 # ─────────────────────────────────────────────────────────────
 # 3. Mosquitto password file
@@ -110,7 +163,9 @@ echo "  STEP 3: Generate MQTT password"
 echo "════════════════════════════════════════════════════"
 docker run --rm -v "$PROJ/config:/mosquitto/config" eclipse-mosquitto:2.0 \
   mosquitto_passwd -c -b /mosquitto/config/passwd "$MQTT_USER" "$MQTT_PASSWORD"
-echo "✓ MQTT passwd OK"
+# Restrict permissions — file contains hashed passwords
+chmod 600 config/passwd
+echo "✓ MQTT passwd OK (chmod 600)"
 
 # ─────────────────────────────────────────────────────────────
 # 4. Test RTSP stream

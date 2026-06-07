@@ -43,16 +43,22 @@ cameras:
   parking:
     ffmpeg:
       inputs:
-        # SUB stream — for AI detection
-        # Note: if Tapo sub is too low-res for detection, use main stream for both:
-        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/stream2
-          roles: [detect]
-        # MAIN stream — for recording
+        # IMPORTANT: For Tapo cameras at >15m distance OR for parking detection
+        # at 1080p quality, use MAIN stream for both detect+record.
+        # Tapo sub-stream is capped at 360p15 → car at 20m is <50px tall → poor
+        # detection. CPU cost is higher (~2× vs sub-stream) but quality matters.
         - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/stream1
-          roles: [record]
+          roles: [detect, record]
 
-    # Tapo sub-streams have low resolution — adjust detect block:
+        # ALTERNATIVE: if camera is <10m from spot AND you want lower CPU,
+        # uncomment the dual-stream version below + comment the line above:
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/stream2
+        #   roles: [detect]
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/stream1
+        #   roles: [record]
+
+    # Main stream is 1080p — match detect resolution:
     detect:
-      width: 640
-      height: 360
+      width: 1920
+      height: 1080
       fps: 5

@@ -12,6 +12,12 @@
       entity_id: sensor.parking_lot_spot_1_car
       below: 1
       for: {minutes: 2}
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
   action:
     - service: notify.whatsapp_parking
       data:
@@ -26,6 +32,12 @@
       entity_id: sensor.parking_lot_spot_2_car
       below: 1
       for: {minutes: 2}
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
   action:
     - service: notify.whatsapp_parking
       data:
@@ -40,6 +52,12 @@
       entity_id: sensor.parking_lot_spot_3_car
       below: 1
       for: {minutes: 2}
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
   action:
     - service: notify.whatsapp_parking
       data:
@@ -54,6 +72,12 @@
       entity_id: sensor.parking_lot_spot_4_car
       below: 1
       for: {minutes: 2}
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
   action:
     - service: notify.whatsapp_parking
       data:
@@ -68,6 +92,12 @@
       entity_id: sensor.parking_lot_spot_5_car
       below: 1
       for: {minutes: 2}
+  condition:
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
   action:
     - service: notify.whatsapp_parking
       data:

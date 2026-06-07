@@ -22,6 +22,12 @@
       for:
         minutes: 2
   condition:
+    # Guard against false trigger on Frigate restart (unavailable→0)
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
     # Suppress alert if the last detected plate matches owner_plate
     - condition: template
       value_template: >

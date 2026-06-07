@@ -5,6 +5,21 @@
 
 default_config:
 
+# ─────────────────────────────────────────────────────────────
+# HTTP / reverse proxy support
+# Uncomment and edit if HA is behind a reverse proxy (NPM, Traefik, SWAG, etc.).
+# Without this, HA rejects requests with 'WrongHostError'.
+# ─────────────────────────────────────────────────────────────
+# http:
+#   use_x_forwarded_for: true
+#   trusted_proxies:
+#     - 172.16.0.0/12          # Docker bridge networks
+#     - 192.168.0.0/16         # LAN — narrow this to your reverse proxy IP
+#     - 10.0.0.0/8             # private network
+#   # If exposed to internet, also set:
+#   # ip_ban_enabled: true
+#   # login_attempts_threshold: 5
+
 mqtt:
   broker: mosquitto
   port: 1883

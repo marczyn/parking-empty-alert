@@ -12,6 +12,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.4] — 2026-06-07
+
+### Fixed (Round 4 code audit — 11 more gaps)
+
+#### 🔴 Critical
+
+- **`numeric_state below: 1` triggered false "spot free!" on Frigate restart.**
+  When sensor went `unavailable → 0`, HA's `numeric_state` trigger considered
+  this "crossing below 1" → after 2 min of recovery, every Frigate restart
+  spammed a "🅿️ FREE!" message even with car parked. Added `condition: template`
+  guarding against false trigger: only fire if previous state was `1+` (occupied).
+  Applied to base, multi-camera, multi-spot, and LPR automations.
+
+- **setup.sh skipped prompts on re-run if `.env` existed**, but `.env` from
+  earlier versions was missing `TZ` (added in v1.3.2). Users upgrading via
+  `git pull && bash scripts/setup.sh` got incomplete config. Added migration
+  logic: detects missing keys, prompts to add them, re-runs DOCKER_HOST_IP
+  substitution if needed.
+
+#### 🟡 Important
+
+- **HA `configuration.yaml` had no `http:` section** — anyone putting HA behind
+  reverse proxy (NPM, Traefik, SWAG, Cloudflare Tunnel) got `WrongHostError`
+  rejections. Added commented `http: trusted_proxies` block with explanatory
+  comments + IP ban hardening hint.
+
+- **CI workflow had no `permissions:` block** — GitHub-default token has
+  permissive write access. Added explicit least-privilege: `contents: read`,
+  `pull-requests: read`. Future-proof against supply chain attacks.
+
+- **Mosquitto `passwd` file had default 644 permissions** (world-readable).
+  Hashed but principle of least privilege. Added `chmod 600` after creation.
+
+- **Tapo template used sub-stream (360p15) for detection** — too low resolution
+  at 20m distance (cars become <50px tall, YOLO misses). Changed default to
+  main stream (1080p) for both detect+record, with low-res dual-stream option
+  as alternative for users with cameras <10m from spot.
+
+- **No Dependabot config** — manual updates only for GH Actions + Docker images.
+  Added `.github/dependabot.yml` with weekly checks for both ecosystems.
+
+#### 🟢 Polish
+
+- README said "Setup time: 30 minutes" but new prompts (TZ + DOCKER_HOST_IP)
+  push real time to 45-60 min. Synced with INSTALLATION.md's 45-60 estimate.
+
+### Changed
+- setup.sh re-run is now idempotent + auto-migrates older `.env` files.
+
+[1.3.4]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.4
+
 ## [1.3.3] — 2026-06-07
 
 ### Fixed (Round 3 code audit — 8 more gaps)
@@ -341,7 +392,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.3...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.4...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

@@ -15,7 +15,7 @@
 
 **Reliability:** 95-99% (Frigate object tracking with persistence).
 
-**Setup time:** 30 minutes first time, runs for years.
+**Setup time:** 45-60 minutes first time, runs for years.
 
 ---
 
