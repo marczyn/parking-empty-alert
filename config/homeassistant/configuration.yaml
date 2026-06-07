@@ -55,9 +55,14 @@ recorder:
 # http:
 #   use_x_forwarded_for: true
 #   trusted_proxies:
-#     - 172.16.0.0/12          # Docker bridge networks
-#     - 192.168.0.0/16         # LAN — narrow this to your reverse proxy IP
-#     - 10.0.0.0/8             # private network
+#     # Narrow to your reverse proxy's actual IP, NOT broad RFC1918 ranges!
+#     # Examples (uncomment ONE that matches your reverse proxy):
+#     # - 172.18.0.0/16        # specific Docker bridge subnet (use `docker network inspect`)
+#     # - 192.168.1.10/32      # specific reverse proxy host
+#     # - 127.0.0.1            # localhost-only proxy
+#     #
+#     # ⚠️ AVOID broad ranges like 192.168.0.0/16 — they trust your entire LAN
+#     # to forge X-Forwarded-For headers, which defeats HA's IP-based auth!
 #   # If exposed to internet, also set:
 #   # ip_ban_enabled: true
 #   # login_attempts_threshold: 5

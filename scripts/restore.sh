@@ -42,9 +42,10 @@ fi
 echo "Stopping containers..."
 docker compose down 2>/dev/null || true
 
-# Extract backup
+# Extract backup — --overwrite flag for cross-platform consistency
+# (GNU tar default; BSD/macOS tar may prompt without explicit flag)
 echo "Extracting $BACKUP_FILE..."
-tar xzf "$BACKUP_FILE"
+tar xzf "$BACKUP_FILE" --overwrite 2>/dev/null || tar xzf "$BACKUP_FILE"
 
 # Restore safe permissions on secret files
 [ -f .env ] && chmod 600 .env

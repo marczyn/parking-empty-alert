@@ -51,6 +51,10 @@ creates `.env`, `secrets.yaml`, and Mosquitto passwd needed before any LPR work.
 
 ### Step 1 — Add CodeProject AI to your stack
 
+⚠️ **Disk space warning:** The CodeProject AI image is **~3 GB** (CPU build)
+or **~5 GB** (CUDA build). The ALPR module downloads another **~500 MB** of
+models on first install. Ensure 10 GB free before proceeding.
+
 From the main repo directory:
 
 ```bash
@@ -59,6 +63,15 @@ docker compose -f docker-compose.yml -f docker-compose.lpr.yml up -d
 ```
 
 This adds a 4th container `codeproject-ai` on port 32168.
+
+⚠️ **Detection model:** Frigate's bundled YOLOv8n was NOT trained on the
+`license_plate` class — it sees plates as "noise" inside the car bounding box.
+For best LPR results, swap to a model with `license_plate` class
+(e.g., YOLOv8n trained on COCO + custom plate dataset). Place in `./model_cache/`
+and uncomment the `model:` block in `examples/lpr/frigate.lpr.yml`.
+
+Without a custom model, LPR may detect ~50% of plates in good lighting —
+acceptable for owner-verification but not for blacklist surveillance.
 
 Verify:
 ```bash

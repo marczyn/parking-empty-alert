@@ -12,6 +12,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.16] — 2026-06-07
+
+### Fixed (Round 17 audit — 5 gaps, no regressions)
+
+#### 🟡 Important
+
+- **LPR README didn't warn about CodeProject AI image size (~3 GB CPU / ~5 GB CUDA).**
+  Users on small disks would fail image pull mid-install with confusing errors.
+  Added explicit ⚠️ disk space warning + 10 GB recommendation.
+
+- **LPR documentation omitted that Frigate bundled YOLO doesn't detect
+  `license_plate` class.** Users running default LPR config expected plate
+  detection but YOLOv8n was trained on COCO (no plate class) — actual detection
+  rate ~50%. Added explanation + path to use custom model.
+
+- **`tar xzf` in restore.sh missing `--overwrite` flag.** GNU tar defaults to
+  overwrite, but BSD/macOS tar may prompt or fail on existing files. Added
+  `--overwrite` with fallback for tar versions that don't support it.
+
+- **HA `trusted_proxies` example had RFC1918 broad ranges** (`192.168.0.0/16`,
+  `10.0.0.0/8`). Trusting entire LAN to forge `X-Forwarded-For` defeats HA
+  auth security. Rewrote with single-host `/32` examples + ⚠️ warning.
+
+- **Port conflicts not documented in INSTALLATION.md prerequisites.** Users
+  on Synology hit 5000 conflict with DSM; users on other systems may hit
+  RTSP server conflict on 8554. Added port table with common conflicts +
+  how to remap.
+
+[1.3.16]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.16
+
 ## [1.3.15] — 2026-06-07
 
 ### Fixed (Round 15 code audit — 3 gaps, no regressions)
@@ -828,7 +858,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.15...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.16...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

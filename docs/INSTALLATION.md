@@ -72,6 +72,20 @@ Skip this step if you already have Docker installed (`docker --version` works).
 - **Docker Engine 24.0+** (for healthcheck improvements, depends_on conditions)
 - **Docker Compose v2.x** (`docker compose` with space) — v1 (`docker-compose` with hyphen) is **NOT supported** (EOL June 2023)
 
+**Port requirements** — these must be available on your Docker host:
+
+| Port | Service | Conflict risks |
+|---|---|---|
+| 1883 | Mosquitto MQTT | Other MQTT brokers (rare) |
+| 5000 | Frigate web UI | Synology DSM, Flask dev servers, RPi camera UI |
+| 8123 | Home Assistant | None typical |
+| 8554 | Frigate RTSP restream | Other RTSP servers (`rtsp-simple-server`, MotionEye) |
+| 8555 | Frigate WebRTC | Rarely used by others |
+| 32168 | CodeProject AI (LPR only) | None typical |
+
+If any conflict, edit the `ports:` block in `docker-compose.yml` to remap.
+For example, change `"5000:5000"` → `"5001:5000"` to expose Frigate on 5001 instead.
+
 Verify:
 ```bash
 docker --version           # should be Docker version 24.x or newer
