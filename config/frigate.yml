@@ -72,11 +72,8 @@ detect:
 # Switch 'default' to 'info' or 'debug' temporarily when troubleshooting
 logger:
   default: warning
-  logs:
-    frigate.video: warning
-    frigate.object_detection: warning
-    # Uncomment for verbose troubleshooting:
-    # frigate: info
+  # logs: block removed — per-key 'warning' was identical to default. Re-add
+  # only when overriding specific loggers (e.g., frigate.object_detection: debug)
 
 # Event snapshots (cars entering/leaving)
 snapshots:

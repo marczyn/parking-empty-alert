@@ -14,6 +14,9 @@ Example configuration for **multiple parking spots in parallel** (e.g., office p
 
 ## How to use
 
+**Prerequisite:** complete the base setup first (`bash scripts/setup.sh`). This
+creates `.env`, `secrets.yaml`, and Mosquitto passwd needed by ALL camera setups.
+
 ```bash
 # 1. Stop the stack
 docker compose down
@@ -21,14 +24,18 @@ docker compose down
 # 2. Copy multi-camera configs over single-camera
 cp examples/multi-camera/frigate.yml      config/frigate.yml
 cp examples/multi-camera/automations.yaml config/homeassistant/automations.yaml
+cp examples/multi-camera/ui-lovelace.yaml config/homeassistant/ui-lovelace.yaml
 
 # 3. Edit camera IPs in config/frigate.yml
 #    (3 cameras × 2 RTSP streams = 6 lines to replace)
 
-# 4. Restart
+# 4. Re-run setup.sh to substitute client_id + DOCKER_HOST_IP in new files
+bash scripts/setup.sh
+
+# 5. Restart
 docker compose up -d
 
-# 5. In HA → Settings → Server Controls → Restart
+# 6. In HA → Settings → Server Controls → Restart
 ```
 
 ## After start

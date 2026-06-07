@@ -46,6 +46,9 @@ CodeProject AI runs locally — no internet required. License plate images never
 
 ## Installation
 
+**Prerequisite:** complete the base setup first (`bash scripts/setup.sh`). This
+creates `.env`, `secrets.yaml`, and Mosquitto passwd needed before any LPR work.
+
 ### Step 1 — Add CodeProject AI to your stack
 
 From the main repo directory:

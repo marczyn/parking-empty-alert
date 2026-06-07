@@ -30,6 +30,9 @@ views:
                 name: Suggested
 
       # ─── Grid of 5 spots ───
+      # Note: 5 columns works well on desktop; on phone portrait, HA's responsive
+      # layout auto-wraps. For dedicated phone view, change `columns: 5` to `2`
+      # or `3` and create a separate dashboard via Settings → Dashboards.
       - type: grid
         columns: 5
         square: true

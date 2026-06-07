@@ -50,10 +50,14 @@ For multi-spot monitoring you need a **wide-angle camera**:
 
 ## Installation
 
+**Prerequisite:** complete the base setup first (`bash scripts/setup.sh`). This
+creates `.env`, `secrets.yaml`, and Mosquitto passwd needed by ALL camera setups.
+
 ### Step 1 — Apply multi-spot Frigate config
 
 ```bash
 cp examples/multi-spot-single-camera/frigate.yml config/frigate.yml
+bash scripts/setup.sh   # re-runs substitutions on new config
 docker compose restart frigate
 ```
 

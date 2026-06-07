@@ -121,6 +121,15 @@ jobs:
           # This way new shellcheck releases adding style rules don't break CI
           shellcheck --severity=warning scripts/*.sh
           echo "✓ all scripts OK"
+      - name: Test install-git-hooks.sh runs without error
+        run: |
+          git init -q test-repo
+          cd test-repo
+          mkdir -p scripts
+          cp ../scripts/install-git-hooks.sh scripts/
+          bash scripts/install-git-hooks.sh
+          test -x .git/hooks/pre-commit
+          echo "✓ pre-commit hook installs successfully"
 
   frigate-config:
     name: Frigate config schema validation
@@ -153,7 +162,7 @@ jobs:
               assert 'ffmpeg' in cam, f'camera {name}: missing ffmpeg'
               assert 'zones' in cam, f'camera {name}: missing zones'
               assert any('detect' in inp.get('roles',[]) for inp in cam['ffmpeg']['inputs']), f'camera {name}: no detect role'
-          print(f'✓ {sys.argv[0]} OK')
+          print('✓ OK')
           " || { echo "✗ $CFG FAILED"; exit 1; }
           done
           echo "✓ All Frigate configs valid"

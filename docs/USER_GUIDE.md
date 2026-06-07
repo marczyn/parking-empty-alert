@@ -756,3 +756,16 @@ This removes everything except saved recordings on the host disk (separate `dock
 ---
 
 **More questions?** Open an issue: https://github.com/marczyn/parking-empty-alert/issues
+
+---
+
+## External services this project depends on
+
+| Service | URL | What it provides | If it goes down |
+|---|---|---|---|
+| CallMeBot (WhatsApp gateway) | https://www.callmebot.com/ | Free WhatsApp message delivery API | Switch to Telegram (Section 9 — Advanced) or HA Companion App push |
+| Frigate live demo | https://demo.frigate.video | Public Frigate UI demo (for reference only — not required for setup) | Use your own Frigate UI at `http://<host>:5000` |
+| Frigate docs | https://docs.frigate.video | Configuration reference | Cached versions on web.archive.org or via GitHub: `blakeblackshear/frigate/docs/` |
+| Home Assistant docs | https://www.home-assistant.io/docs/ | HA reference | GitHub: `home-assistant/home-assistant.io` |
+
+This project's stack runs **fully offline** once installed — only WhatsApp delivery (CallMeBot) requires external service. If CallMeBot goes down, switch notifications to Telegram (free, official) or HA Companion App (push, free, no 3rd party).

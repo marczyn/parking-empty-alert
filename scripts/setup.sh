@@ -203,7 +203,8 @@ EOF
   # Anchored to 'url: http://' prefix so it ONLY touches iframe URLs, not comments.
   for f in config/homeassistant/ui-lovelace.yaml \
            examples/multi-camera/ui-lovelace.yaml \
-           examples/multi-spot-single-camera/ui-lovelace.yaml; do
+           examples/multi-spot-single-camera/ui-lovelace.yaml \
+           examples/lpr/ui-lovelace.yaml; do
     [ -f "$f" ] || continue
     # Two patterns, both anchored to 'url: http://...:5000':
     #  1. Replace placeholder 'DOCKER_HOST_IP' in URL

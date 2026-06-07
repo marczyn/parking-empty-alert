@@ -12,6 +12,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.14] — 2026-06-07
+
+### Fixed (Round 14 code audit — 9 gaps, no regressions)
+
+#### 🔴 Critical
+
+- **CI Frigate validation had `sys.argv[0]`** which evaluated to `'-c'` inside
+  `python3 -c "..."`. CI passed all validations regardless of which file was
+  being checked → false-positive validation. Replaced with literal `'✓ OK'`.
+
+#### 🟡 Important
+
+- **`examples/lpr/` had no `ui-lovelace.yaml`** — LPR users got generic HA
+  default dashboard. Added 3-view LPR dashboard: Overview (live + plate +
+  owner/blacklist input_text), Plate History (logbook + quick management),
+  Diagnostics (automations + CodeProject AI iframe + Frigate iframe).
+
+- **Frigate logger config had redundant per-key 'warning' = default 'warning'.**
+  Removed the redundant block; documented re-adding for selective overrides.
+
+- **`install-git-hooks.sh` not tested in CI** — broken hook would silently
+  ship to users. Added CI step that creates a test repo, runs install-hooks,
+  asserts pre-commit hook is created executable.
+
+- **Examples READMEs didn't mention `setup.sh` prerequisite + re-run flow.**
+  Users following examples without first running setup.sh got broken stack
+  (no `.env`, no passwd). Added "Prerequisite" note + "re-run setup.sh" step
+  in multi-camera, multi-spot, and LPR READMEs.
+
+- **3rd-party link rot risk not documented.** USER_GUIDE didn't say what
+  happens if CallMeBot or Frigate demo goes down. Added "External services"
+  table with fallback paths for each external dependency.
+
+#### 🟢 Polish
+
+- **Lovelace 5-column grid not responsive on mobile.** Added comment
+  explaining trade-off and pointing to separate dashboard pattern for
+  dedicated mobile view.
+
+- **multi-camera `ui-lovelace.yaml` added to DOCKER_HOST_IP substitution loop**
+  (added in v1.3.13 but loop not updated — fixed now).
+
+- **LPR ui-lovelace added to substitution loop** in setup.sh.
+
+[1.3.14]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.14
+
 ## [1.3.13] — 2026-06-07
 
 ### Fixed (Round 13 code audit — 4 real gaps, NO regressions)
@@ -760,7 +806,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.13...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.14...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0
