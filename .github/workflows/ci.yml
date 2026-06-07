@@ -16,7 +16,7 @@ jobs:
     name: Validate configs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -113,7 +113,7 @@ jobs:
     needs: validate          # skip if YAML invalid
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Run shellcheck
@@ -137,7 +137,7 @@ jobs:
     needs: validate          # skip if YAML invalid
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Pull Frigate image (single shared pull)
         run: docker pull ghcr.io/blakeblackshear/frigate:stable
       - name: Validate all Frigate configs against stable image
