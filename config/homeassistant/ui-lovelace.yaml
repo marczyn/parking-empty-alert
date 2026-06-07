@@ -107,7 +107,7 @@ views:
         # resolve Docker DNS (e.g., "frigate"). Replace <DOCKER_HOST_IP> with
         # the IP that your phone/browser sees (e.g., 192.168.1.10).
         url: http://DOCKER_HOST_IP:5000/events
-        aspect_ratio: 75%
+        aspect_ratio: '16:9'   # widescreen — fits both desktop and mobile portrait better
 
 # IMPORTANT: After installing, replace DOCKER_HOST_IP everywhere in this file:
 #   sed -i 's/DOCKER_HOST_IP/192.168.1.10/g' config/homeassistant/ui-lovelace.yaml
@@ -132,4 +132,4 @@ views:
         # resolve Docker DNS (e.g., "frigate"). Replace <DOCKER_HOST_IP> with
         # the IP that your phone/browser sees (e.g., 192.168.1.10).
         url: http://DOCKER_HOST_IP:5000
-        aspect_ratio: 75%
+        aspect_ratio: '16:9'   # widescreen — fits both desktop and mobile portrait better

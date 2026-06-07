@@ -60,6 +60,10 @@ done
 
 # Create archive
 tar czf "$BACKUP_PATH" \
+  --exclude='./.git' \
+  --exclude='./node_modules' \
+  --exclude='./.venv' \
+  --exclude='__pycache__' \
   --exclude='config/homeassistant/.storage' \
   --exclude='config/homeassistant/.cloud' \
   --exclude='config/homeassistant/home-assistant.log*' \
@@ -68,6 +72,9 @@ tar czf "$BACKUP_PATH" \
   --exclude='config/homeassistant/tts' \
   --exclude='config/homeassistant/www' \
   --exclude='config/homeassistant/custom_components' \
+  --exclude='*.pyc' \
+  --exclude='*.swp' \
+  --exclude='.DS_Store' \
   "${EXISTING[@]}"
 
 # Set permissions

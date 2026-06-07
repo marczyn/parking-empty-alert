@@ -190,4 +190,4 @@ views:
         # Replace DOCKER_HOST_IP with your host's LAN IP — Docker DNS doesn't
         # resolve from a browser. setup.sh handles this automatically.
         url: http://DOCKER_HOST_IP:5000
-        aspect_ratio: 75%
+        aspect_ratio: '16:9'

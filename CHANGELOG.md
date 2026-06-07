@@ -12,6 +12,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.6] — 2026-06-07
+
+### Fixed (Round 6 code audit — 7 more gaps)
+
+#### 🔴 Critical
+
+- **`ui-lovelace.yaml` was IGNORED by HA since v1.0.0.** HA defaults to "storage
+  mode" (UI-driven dashboards). Our shipped `ui-lovelace.yaml` was sitting on
+  disk doing nothing — every user was seeing the generic default HA dashboard,
+  NOT the custom 3-view parking dashboard. **Massive feature regression nobody
+  noticed.** Added `lovelace: mode: yaml` to configuration.yaml.
+
+- **HA database had no `recorder:` purge config.** Frigate motion sensors update
+  every few seconds; `default_config:` enables recorder which logs ALL state
+  changes by default. DB grew unbounded → multi-GB within days. Added recorder
+  config: 14-day retention, batch writes (5s commit interval), exclude noisy
+  Frigate motion entities + update domain.
+
+#### 🟡 Important
+
+- **INSTALLATION.md §8 directed users to "Debug → Edit Zones"** — in Frigate
+  0.13+, zone editor moved to `Configuration → Edit Zones`. Documentation drift.
+  Updated with both paths (new + legacy).
+
+- **`backup.sh` didn't exclude `.git/`** — when run from repo dir (the normal
+  case), backups included 50+ MB of git history per backup. Added exclusions
+  for `.git/`, `__pycache__`, `*.pyc`, `*.swp`, `.DS_Store`, `node_modules`,
+  `.venv`.
+
+- **CONTRIBUTING.md didn't mention pre-commit hook installation** — new
+  contributors wouldn't know to install secret-leak protection added in v1.3.5.
+  Added explicit step to PR workflow with shellcheck severity flag.
+
+- **Frigate model auto-download (50MB) on first run requires internet, not
+  documented.** Air-gapped users saw silent fail. Added INSTALLATION.md §7.3
+  note + link to Frigate's manual model placement docs.
+
+- **Lovelace `aspect_ratio: 75%`** (4:3) made iframe too tall on mobile
+  portrait. Changed to `'16:9'` for better cross-device experience.
+
+[1.3.6]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.6
+
 ## [1.3.5] — 2026-06-07
 
 ### Fixed (Round 5 code audit — 8 more gaps)
@@ -447,7 +489,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.5...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.6...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

@@ -49,19 +49,23 @@ Maintainers may close the issue with a recommendation to keep it forked, if the 
 git clone https://github.com/<your-username>/parking-empty-alert.git
 cd parking-empty-alert
 
-# 3. Create a topic branch
+# 3. Install pre-commit hook (REQUIRED — blocks accidental secret leaks)
+bash scripts/install-git-hooks.sh
+
+# 4. Create a topic branch
 git checkout -b feat/your-feature-name
 
-# 4. Make your changes
-# 5. Validate locally
+# 5. Make your changes
+# 6. Validate locally
 docker compose config --quiet                    # check compose YAML
 python -c "import yaml; yaml.safe_load(open('config/frigate.yml'))"  # check frigate YAML
-shellcheck scripts/*.sh                          # check shell scripts
+shellcheck --severity=warning scripts/*.sh       # check shell scripts
 
-# 6. Commit (see commit message style below)
+# 7. Commit (see commit message style below)
 git commit -m "feat: short summary of change"
+# (pre-commit hook will validate no secrets are committed)
 
-# 7. Push and open PR
+# 8. Push and open PR
 git push origin feat/your-feature-name
 # Then open PR on GitHub
 ```

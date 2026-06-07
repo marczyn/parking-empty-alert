@@ -383,6 +383,15 @@ You should see:
 
 Click on `parking` — you should see the live feed. If it's a black/grey screen with "Stream offline" — the RTSP path is wrong. See [Common installation issues](#11-common-installation-issues).
 
+**Note: AI model download on first run**
+
+On first Frigate startup, the YOLOv8 detection model (~50 MB) downloads automatically from the Frigate model registry. This requires **internet access** during initial setup.
+
+- ✅ With internet: model downloads in ~30 seconds; Frigate starts AI detection
+- ❌ Air-gapped network: model download fails, Frigate runs but detection is broken
+
+If running in an isolated network, see the [Frigate model docs](https://docs.frigate.video/configuration/object_detectors/#downloading-models) for manual model placement in `model_cache/`.
+
 ### 7.4 Check Home Assistant
 
 Open `http://<your-docker-host-IP>:8123`.
@@ -401,10 +410,18 @@ You should see the default HA dashboard.
 
 This is the **most important** step — Frigate needs to know **exactly where** the parking spot is in the camera frame.
 
-### 8.1 Open Debug view
+### 8.1 Open zone editor
+
+In Frigate 0.13+:
 
 1. Frigate UI → click camera **parking**
+2. Click **Configuration** (top-right gear icon) — or **Settings** in some themes
+3. Look for **Edit Zones** button (right side panel)
+
+For older Frigate versions or alternative path:
+1. Frigate UI → click camera **parking**
 2. Click **Debug** in the left menu
+3. Click ⚙ **Settings** (top-right) → **Edit Zones**
 
 You see live camera feed with optional overlays:
 - **Bounding boxes** (white) — Frigate's object detections
@@ -412,9 +429,6 @@ You see live camera feed with optional overlays:
 - **Motion** (red boxes) — detected motion areas
 
 ### 8.2 Draw the zone polygon
-
-1. Click ⚙ **Settings** (top-right)
-2. Click **Edit Zones**
 3. **Click and drag** to draw points around the parking spot:
    - 4 points minimum (rectangle)
    - 6-8 points for irregular spots (recommended)

@@ -6,6 +6,33 @@
 default_config:
 
 # ─────────────────────────────────────────────────────────────
+# Activate YAML-mode Lovelace dashboards.
+# Without this, HA uses 'storage mode' (UI-driven), and our shipped
+# ui-lovelace.yaml is IGNORED.
+# ─────────────────────────────────────────────────────────────
+lovelace:
+  mode: yaml
+  resources: []
+
+# ─────────────────────────────────────────────────────────────
+# Recorder — limit database growth.
+# Frigate motion sensors update every few seconds. By default HA records
+# ALL state changes → DB balloons to GB in days. These rules keep only
+# what's needed for dashboards + automations.
+# ─────────────────────────────────────────────────────────────
+recorder:
+  purge_keep_days: 14         # keep history for 14 days (default = 10)
+  commit_interval: 5           # batch DB writes (default = 1; less I/O)
+  exclude:
+    domains:
+      - update                 # don't record firmware update entities
+    entity_globs:
+      - sensor.parking_*_motion_count   # extremely chatty
+      - binary_sensor.parking_*_motion  # changes every few seconds
+    event_types:
+      - call_service           # noisy
+
+# ─────────────────────────────────────────────────────────────
 # HTTP / reverse proxy support
 # Uncomment and edit if HA is behind a reverse proxy (NPM, Traefik, SWAG, etc.).
 # Without this, HA rejects requests with 'WrongHostError'.
