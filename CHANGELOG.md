@@ -12,6 +12,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coral USB TPU detailed setup walkthrough
 - `make` targets for common operations
 
+## [1.3.9] — 2026-06-07
+
+### Fixed (Round 9 code audit — 7 more gaps)
+
+#### 🔴 Critical
+
+- **Frigate container had no TZ env var** — snapshot/recording timestamps showed
+  UTC in Frigate UI, mismatching HA timezone. User saw "car arrived 14:32" in HA
+  alert but "12:32" in Frigate event clip — confusing for forensic review.
+  Added `TZ: "${TZ:-UTC}"` to both Frigate and Mosquitto services.
+
+- **`setup.sh` had `set -e` with no exit trap** — Ctrl+D or Ctrl+C exited
+  silently with `137`/`130`. User wondered "did it work?". Added `trap EXIT`
+  with friendly message distinguishing user-interrupt from real errors.
+
+- **Multi-spot `parking_first_free_spot` template returned `'all_taken'` string
+  when all 5 spots occupied** — broke automations expecting numeric value,
+  Lovelace glance card showed ugly text. Changed to return `0` (= all taken)
+  + `1-5` (free spot number). Added `unit_of_measurement: ""` to suppress
+  unit guessing.
+
+#### 🟡 Important
+
+- **CI installed `yamllint` unpinned** — future yamllint versions adding new
+  style rules would silently break CI. Pinned to `1.35.1`.
+
+- **No `restore.sh` counterpart to `backup.sh`** — users had a tarball and
+  guesswork. Added `scripts/restore.sh`: extracts, asks confirmation before
+  overwrite, stops stack first, prints "now run docker compose up -d".
+
+- **HA Companion App push not documented as alternative to WhatsApp.** Many
+  HA users prefer native push. Added Section B in USER_GUIDE.md "Tuning →
+  Customizing alerts" with full example including iOS critical-alert sound
+  + Android priority + trade-offs vs CallMeBot.
+
+- **Frigate model docs were outdated** — said "downloads on first run" but
+  Frigate 0.13+ ships bundled YOLOv8n. Rewrote INSTALLATION.md §7.3 to
+  reflect bundled-by-default reality + custom model swap path.
+
+[1.3.9]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.9
+
 ## [1.3.8] — 2026-06-07
 
 ### Fixed (Round 8 code audit — 8 more gaps)
@@ -571,7 +612,7 @@ README documentation table updated with NAS guides link.
 - CallMeBot rate limit: 1 message/min/phone (shared with all your `whatsapp_parking` calls)
 - YOLO performance degrades in heavy rain/snow (~70-90% accuracy vs 95% daytime clear)
 
-[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.8...HEAD
+[Unreleased]: https://github.com/marczyn/parking-empty-alert/compare/v1.3.9...HEAD
 [1.3.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.3.0
 [1.2.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.2.0
 [1.0.0]: https://github.com/marczyn/parking-empty-alert/releases/tag/v1.0.0

@@ -24,7 +24,8 @@ jobs:
           python-version: '3.12'
 
       - name: Install yamllint
-        run: pip install yamllint
+        # Pinned to avoid CI breakage when yamllint adds new style rules
+        run: pip install "yamllint==1.35.1"
 
       - name: Lint YAML formatting (warnings only)
         run: |

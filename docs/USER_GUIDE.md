@@ -247,7 +247,36 @@ Reload HA automations: HA UI → Developer Tools → YAML → Reload Automations
 - Better lighting (add IR illuminator for night, or floodlight)
 - Closer to spot (20m is OK, 30m+ is hard)
 
-**B) Add HA condition:**
+**B) Use HA Companion App push (alternative to WhatsApp)**
+
+If you prefer native push instead of WhatsApp:
+
+1. Install HA Companion App on phone (iOS / Android stores)
+2. Open app → log in to HA → grant push notification permission
+3. After pairing, your phone appears as `notify.mobile_app_<phone_name>`
+4. In `automations.yaml`, replace `notify.whatsapp_parking` with your service:
+
+```yaml
+- service: notify.mobile_app_iphone_jan
+  data:
+    title: "🅿️ Parking spot FREE"
+    message: "You can park — became free 2 min ago"
+    data:
+      push:
+        sound:
+          critical: 1                    # iOS: bypass Do Not Disturb
+          volume: 1.0
+      priority: high                     # Android
+      ttl: 0
+```
+
+**Trade-offs:**
+- ✅ No 3rd-party service, ~1 sec delivery (vs 3 sec WhatsApp)
+- ✅ Rich notifications (image attachment, action buttons)
+- ❌ Requires HA exposed to internet (Nabu Casa, VPN, or port forward) for alerts when away from home WiFi
+- ❌ One device per service — multiple recipients = multiple `notify.mobile_app_*` calls
+
+**C) Add HA condition:**
 
 Make the alert only fire if it's also evening (cars usually leave during day):
 

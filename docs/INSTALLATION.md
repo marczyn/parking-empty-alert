@@ -383,14 +383,20 @@ You should see:
 
 Click on `parking` — you should see the live feed. If it's a black/grey screen with "Stream offline" — the RTSP path is wrong. See [Common installation issues](#11-common-installation-issues).
 
-**Note: AI model download on first run**
+**Note: AI model availability**
 
-On first Frigate startup, the YOLOv8 detection model (~50 MB) downloads automatically from the Frigate model registry. This requires **internet access** during initial setup.
+Frigate 0.13+ ships with a bundled YOLOv8n detection model — AI detection works
+immediately, no internet required for the model itself (you still need internet
+for the initial Docker image pull).
 
-- ✅ With internet: model downloads in ~30 seconds; Frigate starts AI detection
-- ❌ Air-gapped network: model download fails, Frigate runs but detection is broken
+**To use a custom model** (e.g., custom-trained YOLOv8 with better accuracy on
+your specific scene):
+1. Place the .onnx file in a host directory bind-mounted as `./model_cache/`
+2. Uncomment the `model:` block in `config/frigate.yml` (it's commented by default)
+3. Restart Frigate
 
-If running in an isolated network, see the [Frigate model docs](https://docs.frigate.video/configuration/object_detectors/#downloading-models) for manual model placement in `model_cache/`.
+For air-gapped installs, the only manual step is to pre-pull the Docker image
+on a connected machine then transfer it. See [Frigate offline docs](https://docs.frigate.video/configuration/object_detectors/).
 
 ### 7.4 Check Home Assistant
 

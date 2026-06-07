@@ -39,6 +39,8 @@ services:
       # Pass credentials into container so healthcheck can authenticate
       MQTT_USER: "${MQTT_USER}"
       MQTT_PASSWORD: "${MQTT_PASSWORD}"
+      # Timezone — for consistent log timestamps
+      TZ: "${TZ:-UTC}"
     # Resource limits — Mosquitto is lightweight, 256MB is plenty
     mem_limit: 256m
     mem_reservation: 64m
@@ -91,6 +93,8 @@ services:
       FRIGATE_RTSP_PASSWORD: "${RTSP_PASSWORD}"
       FRIGATE_MQTT_USER: "${MQTT_USER}"
       FRIGATE_MQTT_PASSWORD: "${MQTT_PASSWORD}"
+      # Timezone — same as HA, so snapshot/recording timestamps match
+      TZ: "${TZ:-UTC}"
     volumes:
       - ./config/frigate.yml:/config/config.yml:ro
       - frigate-storage:/media/frigate

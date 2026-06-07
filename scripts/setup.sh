@@ -5,6 +5,14 @@
 ###############################################################################
 set -euo pipefail
 
+# Trap unexpected exits with a friendly message
+trap 'EXIT_CODE=$?; if [ $EXIT_CODE -ne 0 ]; then
+  echo
+  echo "❌ setup.sh exited with code $EXIT_CODE at line $LINENO"
+  echo "   If you pressed Ctrl+C or Ctrl+D, that is OK — re-run when ready."
+  echo "   For real errors, see line above and check the README troubleshooting section."
+fi' EXIT
+
 cd "$(dirname "$0")/.."
 PROJ=$(pwd)
 
