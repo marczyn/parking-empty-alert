@@ -64,11 +64,12 @@ jobs:
         with:
           version: latest
 
-      - name: Install QEMU
+      - name: Install QEMU and deps
         run: |
-          if ! command -v qemu-system-x86_64 &>/dev/null; then
-            sudo apt-get install -y qemu-system-x86 qemu-utils
-          fi
+          pkgs=""
+          command -v qemu-system-x86_64 &>/dev/null || pkgs="$pkgs qemu-system-x86 qemu-utils"
+          command -v xorriso &>/dev/null          || pkgs="$pkgs xorriso"
+          [ -n "$pkgs" ] && sudo apt-get install -y $pkgs
 
       - name: Packer init
         working-directory: vm
@@ -118,11 +119,12 @@ jobs:
         with:
           version: latest
 
-      - name: Install QEMU
+      - name: Install QEMU and deps
         run: |
-          if ! command -v qemu-system-x86_64 &>/dev/null; then
-            sudo apt-get install -y qemu-system-x86 qemu-utils
-          fi
+          pkgs=""
+          command -v qemu-system-x86_64 &>/dev/null || pkgs="$pkgs qemu-system-x86 qemu-utils"
+          command -v xorriso &>/dev/null          || pkgs="$pkgs xorriso"
+          [ -n "$pkgs" ] && sudo apt-get install -y $pkgs
 
       - name: Packer init
         working-directory: vm
