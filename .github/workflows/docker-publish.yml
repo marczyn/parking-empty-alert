@@ -35,14 +35,17 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push amd64 by digest
+      - name: Build and push amd64
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-full
           platforms: linux/amd64
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert,push-by-digest=true,name-canonical=true,push=true
+          push: true
+          # Tag keeps blob alive in ghcr.io (auto-deletes untagged versions).
+          # Merge uses digest from outputs — tag may be overwritten later.
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:amd64
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-full-amd64
@@ -62,14 +65,15 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push arm64 by digest
+      - name: Build and push arm64
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-full
           platforms: linux/arm64
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert,push-by-digest=true,name-canonical=true,push=true
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:arm64
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-full-arm64
@@ -86,6 +90,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Create and push manifest list
+        # Reference by digest (from job outputs) so manifest list is correct
+        # even if the intermediate :amd64/:arm64 tags are later overwritten.
         run: |
           docker buildx imagetools create \
             --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:latest \
@@ -107,14 +113,15 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push amd64 by digest
+      - name: Build and push amd64
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-lite
           platforms: linux/amd64
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite,push-by-digest=true,name-canonical=true,push=true
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:amd64
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-lite-amd64
@@ -134,14 +141,15 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push arm64 by digest
+      - name: Build and push arm64
         id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.aio-lite
           platforms: linux/arm64
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite,push-by-digest=true,name-canonical=true,push=true
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:arm64
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-lite-arm64
