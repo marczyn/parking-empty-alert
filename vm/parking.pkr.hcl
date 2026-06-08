@@ -90,7 +90,6 @@ source "qemu" "parking" {
 
   qemuargs = [
     ["-machine", "accel=kvm:tcg"],
-    ["-cpu",     "host"],
     ["-smp",     "${var.cpus}"],
   ]
 }
