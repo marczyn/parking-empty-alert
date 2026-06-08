@@ -2,9 +2,9 @@
 ###############################################################################
 # parking-empty-alert — ALL-IN-ONE (Full)
 # Frigate + Mosquitto + Home Assistant in single container with s6-overlay.
-# Ports: 5000 (Frigate UI), 8123 (HA), 1883 (MQTT)
+# Ports: 8090 (Frigate UI), 8123 (HA), 1883 (MQTT)
 #
-# Run:  docker run -d -p 5000:5000 -p 8123:8123 -p 1883:1883 \
+# Run:  docker run -d -p 8090:8090 -p 8123:8123 -p 1883:1883 \
 #         -e CAMERA_IP=192.168.1.100 \
 #         -e RTSP_USER=frigate \
 #         -e RTSP_PASSWORD=yourpassword \
@@ -14,6 +14,12 @@
 ###############################################################################
 
 FROM ghcr.io/blakeblackshear/frigate:stable
+
+# Remap Frigate UI from port 5000 → 8090.
+# Port 5000 conflicts with Synology DSM (which listens on 5000/5001 by default).
+# Only the nginx listen template needs patching; the internal API stays on 5001.
+RUN sed -i 's/listen 5000;/listen 8090;/g; s/listen \[::\]:5000;/listen [::]:8090;/g' \
+    /usr/local/nginx/templates/listen.gotmpl
 
 # Install Mosquitto + Python venv + HA dependencies
 RUN apt-get update && \
@@ -183,7 +189,7 @@ ENV FRIGATE_RTSP_PASSWORD=changeme
 ENV WHATSAPP_PHONE=48501234567
 ENV WHATSAPP_APIKEY=1234567
 
-EXPOSE 5000 8123 1883 8554 8555
+EXPOSE 8090 8123 1883 8554 8555
 
 LABEL org.opencontainers.image.title="parking-empty-alert"
 LABEL org.opencontainers.image.description="All-in-one: Frigate + Mosquitto + Home Assistant. Just docker run + env vars."

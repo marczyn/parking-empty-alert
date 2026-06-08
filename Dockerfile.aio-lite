@@ -4,7 +4,7 @@
 # Frigate + Mosquitto in single container with s6-overlay.
 # Ports: 5000 (Frigate UI), 1883 (MQTT)
 #
-# Run:  docker run -d -p 5000:5000 -p 1883:1883 \
+# Run:  docker run -d -p 8090:8090 -p 1883:1883 \
 #         -e CAMERA_IP=192.168.1.100 \
 #         -e RTSP_USER=frigate \
 #         -e RTSP_PASSWORD=yourpassword \
@@ -18,6 +18,12 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends mosquitto && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir -p /etc/mosquitto /mosquitto/data /mosquitto/log
+
+# Remap Frigate UI from port 5000 → 8090.
+# Port 5000 conflicts with Synology DSM (which listens on 5000/5001 by default).
+# Only the nginx listen template needs patching; the internal API stays on 5001.
+RUN sed -i 's/listen 5000;/listen 8090;/g; s/listen \[::\]:5000;/listen [::]:8090;/g' \
+    /usr/local/nginx/templates/listen.gotmpl
 
 # Mosquitto config
 RUN cat > /etc/mosquitto/mosquitto.conf <<'EOF'
@@ -97,7 +103,7 @@ ENV FRIGATE_CAMERA_IP=192.168.1.100
 ENV FRIGATE_RTSP_USER=frigate
 ENV FRIGATE_RTSP_PASSWORD=changeme
 
-EXPOSE 5000 1883 8554 8555
+EXPOSE 8090 1883 8554 8555
 
 LABEL org.opencontainers.image.title="parking-empty-alert-lite"
 LABEL org.opencontainers.image.description="All-in-one: Frigate + Mosquitto. Just docker run + env vars."
