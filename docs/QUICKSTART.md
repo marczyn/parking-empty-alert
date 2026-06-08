@@ -54,7 +54,7 @@ In Reolink app or web UI:
 
 ```bash
 docker run -d --name parking \
-  -p 5000:5000 -p 8123:8123 -p 1883:1883 \
+  -p 8090:8090 -p 8123:8123 -p 1883:1883 \
   -e CAMERA_IP=192.168.1.100 \
   -e FRIGATE_RTSP_USER=frigate \
   -e FRIGATE_RTSP_PASSWORD=yourpassword \
@@ -64,7 +64,7 @@ docker run -d --name parking \
 ```
 
 After ~1 min boot:
-- **Frigate UI:** http://localhost:5000
+- **Frigate UI:** http://localhost:8090
 - **Home Assistant:** http://localhost:8123
 - **MQTT broker:** localhost:1883
 
@@ -72,7 +72,7 @@ After ~1 min boot:
 
 ```bash
 docker run -d --name parking-lite \
-  -p 5000:5000 -p 1883:1883 \
+  -p 8090:8090 -p 1883:1883 \
   -e CAMERA_IP=192.168.1.100 \
   -e FRIGATE_RTSP_USER=frigate \
   -e FRIGATE_RTSP_PASSWORD=yourpassword \
@@ -80,12 +80,12 @@ docker run -d --name parking-lite \
 ```
 
 After ~1 min boot:
-- **Frigate UI:** http://localhost:5000
+- **Frigate UI:** http://localhost:8090
 - **MQTT broker:** localhost:1883
 
 In your existing HA, add:
 - MQTT integration → broker: `<docker-host-ip>:1883`
-- Frigate integration → URL: `http://<docker-host-ip>:5000`
+- Frigate integration → URL: `http://<docker-host-ip>:8090`
 
 ### Works on
 
@@ -97,7 +97,7 @@ Multi-arch: `amd64` + `arm64` (auto-selected for your platform).
 
 ## Step 4 — Draw your parking zone (2 min)
 
-1. Open **http://localhost:5000** → click camera **parking**
+1. Open **http://localhost:8090** → click camera **parking**
 2. **Settings → Edit Zones** (top right)
 3. Draw polygon around your parking spot
 4. Save → copy coordinates from popup
@@ -126,8 +126,7 @@ After 2 minutes you'll receive WhatsApp:
 |---|---|
 | "Stream offline" in Frigate | Wrong RTSP path — try `h265Preview_01_sub` if camera uses HEVC |
 | No WhatsApp received | Run `curl "https://api.callmebot.com/whatsapp.php?phone=YOUR_PHONE&text=test&apikey=YOUR_KEY"` to test |
-| HA Frigate integration "Cannot connect" | On Linux use `http://localhost:5000`, on Docker Desktop use `http://frigate:5000` |
-| Port 5000 conflict (Synology) | Edit `docker-compose.yml`, change `"5000:5000"` → `"5001:5000"` |
+| HA Frigate integration "Cannot connect" | On Linux use `http://localhost:8090`, on Docker Desktop use `http://frigate:8090` |
 
 For more, see [INSTALLATION.md](INSTALLATION.md#11-common-installation-issues).
 

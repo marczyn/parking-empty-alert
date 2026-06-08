@@ -7,13 +7,16 @@ Deploy parking-empty-alert on a Synology NAS via **Container Manager** (DSM 7.2+
 ### 🅰️ Simple — pull pre-built AIO image (recommended)
 
 1. Container Manager → **Image** → **Add → Add from URL**
-2. URL: `ghcr.io/marczyn/parking-empty-alert:latest` (full) or `:latest-lite` for no-HA
+2. URL: `ghcr.io/marczyn/parking-empty-alert:latest` (full) or `ghcr.io/marczyn/parking-empty-alert-lite:latest` (lite)
 3. **Image** → Run the pulled image
-4. **Set environment variables** in UI: `CAMERA_IP`, `FRIGATE_RTSP_USER`, `FRIGATE_RTSP_PASSWORD`, `WHATSAPP_PHONE`, `WHATSAPP_APIKEY`
-5. **Port mapping:** 5000:5000, 8123:8123, 1883:1883
+4. **Set environment variables** in UI: `FRIGATE_CAMERA_IP`, `FRIGATE_RTSP_USER`, `FRIGATE_RTSP_PASSWORD`, `WHATSAPP_PHONE`, `WHATSAPP_APIKEY`
+5. **Port mapping** (container → host):
+   - `8090` → `8090` (Frigate UI — avoids DSM port 5000 conflict)
+   - `8123` → `8123` (Home Assistant, full image only)
+   - `1883` → `1883` (MQTT)
 6. **Run** — done.
 
-Open `http://<synology-ip>:5000` (Frigate) and `http://<synology-ip>:8123` (HA) in browser.
+Open `http://<synology-ip>:8090` (Frigate) and `http://<synology-ip>:8123` (HA) in browser.
 
 ### 🅱️ Advanced — git clone + customize (covered below)
 
@@ -101,7 +104,7 @@ Should show 3 healthy containers.
 
 ### Step 6 — Access UIs
 
-- **Frigate:** `http://<nas-ip>:5000`
+- **Frigate:** `http://<nas-ip>:8090`
 - **Home Assistant:** `http://<nas-ip>:8123`
 
 If you see "port in use" errors, see [Port conflicts](#port-conflicts) below.
@@ -174,18 +177,21 @@ Same URLs as Method A.
 
 ### Port conflicts
 
-DSM uses several ports by default. Likely conflicts:
+DSM uses several ports by default.
 
-| Port | Used by DSM for | Solution |
+| Port | Used by DSM for | AIO image status |
 |---|---|---|
-| **5000** | DSM HTTP (default) | Change Frigate port in docker-compose.yml: `"5001:5000"` |
-| **5001** | DSM HTTPS (default) | Choose `5002` for Frigate |
-| **8123** | None (Home Assistant default) | Usually OK |
-| **1883** | None (MQTT default) | Usually OK |
+| **5000** | DSM HTTP (default) | ✅ Not used — AIO images use port **8090** for Frigate UI |
+| **5001** | DSM HTTPS (default) | ✅ Not used |
+| **8090** | Nothing by default | ✅ Frigate UI (AIO images) |
+| **8123** | Nothing by default | ✅ Home Assistant (full image) |
+| **1883** | Nothing by default | ✅ MQTT |
 
-To find what's using a port:
+The AIO images intentionally avoid port 5000 — Frigate's nginx was patched at build time to listen on 8090.
+
+If you still hit a conflict on any port:
 ```bash
-sudo netstat -tlnp | grep :5000
+sudo netstat -tlnp | grep :8090
 ```
 
 ### Reverse proxy with HTTPS
@@ -195,7 +201,7 @@ Use DSM's built-in reverse proxy for clean URLs:
 1. **Control Panel → Login Portal → Advanced → Reverse Proxy**
 2. **Create:**
    - **Source:** `https://frigate.yourdomain.com` (or `frigate.<nas-hostname>.local`)
-   - **Destination:** `http://localhost:5000`
+   - **Destination:** `http://localhost:8090`
    - Enable WebSocket
 3. Repeat for HA: `https://ha.yourdomain.com` → `http://localhost:8123`
 4. Use Let's Encrypt cert via Control Panel → Security → Certificate
