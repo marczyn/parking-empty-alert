@@ -34,12 +34,13 @@ RUN apt-get update && \
         && mkdir -p /etc/mosquitto /mosquitto/data /mosquitto/log /opt/ha-config
 
 # Install Home Assistant Core in venv
-# hass-nabucasa removed: its acme dep uses josepy.ComparableX509 (removed in josepy 2+),
-# causing AttributeError that HA's forwarded.py catches as ImportError — breaking all HTTP requests.
 RUN python3 -m venv /opt/ha && \
     /opt/ha/bin/pip install --upgrade pip wheel && \
-    /opt/ha/bin/pip install --no-cache-dir homeassistant && \
-    /opt/ha/bin/pip uninstall -y hass-nabucasa
+    /opt/ha/bin/pip install --no-cache-dir homeassistant
+
+# Remove hass-nabucasa: its acme dep uses josepy.ComparableX509 (removed in josepy 2+),
+# causing AttributeError that HA's forwarded.py catches only as ImportError — all HTTP 500.
+RUN /opt/ha/bin/pip uninstall -y hass-nabucasa
 
 # Mosquitto config
 RUN cat > /etc/mosquitto/mosquitto.conf <<'EOF'
