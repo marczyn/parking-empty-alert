@@ -64,20 +64,11 @@ jobs:
         with:
           version: latest
 
-      - name: Install QEMU (no sudo)
+      - name: Install QEMU
         run: |
-          if command -v qemu-system-x86_64 &>/dev/null; then
-            qemu-system-x86_64 --version | head -1
-            exit 0
+          if ! command -v qemu-system-x86_64 &>/dev/null; then
+            sudo apt-get install -y qemu-system-x86 qemu-utils
           fi
-          mkdir -p ~/.local/qemu-dl ~/.local/qemu
-          cd ~/.local/qemu-dl
-          apt-get download qemu-system-x86 qemu-utils qemu-system-common qemu-system-data 2>&1 | grep -v "^WARNING"
-          for deb in *.deb; do
-            dpkg-deb -x "$deb" ~/.local/qemu/
-          done
-          echo "$HOME/.local/qemu/usr/bin" >> "$GITHUB_PATH"
-          "$HOME/.local/qemu/usr/bin/qemu-system-x86_64" --version | head -1
 
       - name: Packer init
         working-directory: vm
@@ -127,20 +118,11 @@ jobs:
         with:
           version: latest
 
-      - name: Install QEMU (no sudo)
+      - name: Install QEMU
         run: |
-          if command -v qemu-system-x86_64 &>/dev/null; then
-            qemu-system-x86_64 --version | head -1
-            exit 0
+          if ! command -v qemu-system-x86_64 &>/dev/null; then
+            sudo apt-get install -y qemu-system-x86 qemu-utils
           fi
-          mkdir -p ~/.local/qemu-dl ~/.local/qemu
-          cd ~/.local/qemu-dl
-          apt-get download qemu-system-x86 qemu-utils qemu-system-common qemu-system-data 2>&1 | grep -v "^WARNING"
-          for deb in *.deb; do
-            dpkg-deb -x "$deb" ~/.local/qemu/
-          done
-          echo "$HOME/.local/qemu/usr/bin" >> "$GITHUB_PATH"
-          "$HOME/.local/qemu/usr/bin/qemu-system-x86_64" --version | head -1
 
       - name: Packer init
         working-directory: vm
