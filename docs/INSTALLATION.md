@@ -87,14 +87,14 @@ Skip this step if you already have Docker installed (`docker --version` works).
 | Port | Service | Conflict risks |
 |---|---|---|
 | 1883 | Mosquitto MQTT | Other MQTT brokers (rare) |
-| 5000 | Frigate web UI | Synology DSM, Flask dev servers, RPi camera UI |
+| 8090 | Frigate web UI | Rarely conflicts — intentionally avoids Synology DSM (5000/5001) |
 | 8123 | Home Assistant | None typical |
 | 8554 | Frigate RTSP restream | Other RTSP servers (`rtsp-simple-server`, MotionEye) |
 | 8555 | Frigate WebRTC | Rarely used by others |
 | 32168 | CodeProject AI (LPR only) | None typical |
 
 If any conflict, edit the `ports:` block in `docker-compose.yml` to remap.
-For example, change `"5000:5000"` → `"5001:5000"` to expose Frigate on 5001 instead.
+For example, change `"8090:5000"` → `"9090:5000"` to expose Frigate on 9090 instead.
 
 Verify:
 ```bash
@@ -363,7 +363,7 @@ Expected final output:
 ✅ DONE!
 ════════════════════════════════════════════════════
 
-  Frigate UI:        http://localhost:5000
+  Frigate UI:        http://localhost:8090
   Home Assistant:    http://localhost:8123
 ```
 
@@ -413,7 +413,7 @@ If output shows JSON-like data, MQTT is working. If "Connection refused" — Mos
 
 ### 7.3 Check Frigate UI
 
-Open `http://<your-docker-host-IP>:5000` in browser.
+Open `http://<your-docker-host-IP>:8090` in browser.
 
 You should see:
 - **Top bar:** "Frigate" logo
@@ -536,7 +536,7 @@ Wait ~10 seconds, refresh Frigate UI → Debug view → you should see the **gre
 
    | Compose mode | HA network | URL to enter |
    |---|---|---|
-   | Linux (default `docker-compose.yml`) | `host` | `http://localhost:5000` |
+   | Linux (default `docker-compose.yml`) | `host` | `http://localhost:8090` |
    | Docker Desktop (`+ docker-compose.macwin.yml`) | `bridge` | `http://frigate:5000` |
 
 7. Leave other options default
@@ -657,7 +657,7 @@ Both should succeed. If ping fails — network issue between container and camer
 **Cause:** HA can't reach Frigate.
 
 **Fix:** Check which HA network mode you're using:
-- **Linux host mode (default):** use `http://localhost:5000` — HA shares host's network
+- **Linux host mode (default):** use `http://localhost:8090` — HA shares host's network
 - **Docker Desktop / bridge mode:** use `http://frigate:5000` — Docker DNS resolves between containers in same compose project
 
 ### ❌ WhatsApp test fails: "APIKEY invalid"

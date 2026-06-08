@@ -34,7 +34,7 @@ plus any generic ONVIF camera ([templates](examples/cameras/README.md)).
 
 ```bash
 docker run -d --name parking \
-  -p 5000:5000 \
+  -p 8090:8090 \
   -p 8123:8123 \
   -p 1883:1883 \
   -e CAMERA_IP=192.168.1.100 \
@@ -46,19 +46,19 @@ docker run -d --name parking \
 ```
 
 Bundled in this single container:
-- ✅ **Frigate** (NVR + AI detection) — exposed on port **5000**
+- ✅ **Frigate** (NVR + AI detection) — exposed on port **8090**
 - ✅ **Mosquitto** (MQTT broker) — exposed on port **1883**
 - ✅ **Home Assistant** (automation + dashboard) — exposed on port **8123**
 
 After `docker run` (1-2 min boot), open in browser:
-- `http://<host>:5000` → Frigate UI
+- `http://<host>:8090` → Frigate UI
 - `http://<host>:8123` → Home Assistant (pre-configured with MQTT + Frigate integration + WhatsApp notify automation)
 
 ### 🅱️ Lite image — without HA (connect to your existing HA)
 
 ```bash
 docker run -d --name parking-lite \
-  -p 5000:5000 \
+  -p 8090:8090 \
   -p 1883:1883 \
   -e CAMERA_IP=192.168.1.100 \
   -e RTSP_USER=frigate \
@@ -67,12 +67,12 @@ docker run -d --name parking-lite \
 ```
 
 Bundled:
-- ✅ **Frigate** — port **5000**
+- ✅ **Frigate** — port **8090**
 - ✅ **Mosquitto** — port **1883**
 
 After `docker run`, in your existing HA add:
 - MQTT integration → broker: `<host>`, port: `1883`
-- Frigate integration → URL: `http://<host>:5000`
+- Frigate integration → URL: `http://<host>:8090`
 
 ### Multi-arch
 
@@ -410,7 +410,7 @@ The script will ask for camera IP, login, password — and start everything itse
 After completion you will see:
 ```
 ✅ DONE!
-  Frigate UI:        http://localhost:5000
+  Frigate UI:        http://localhost:8090
   Home Assistant:    http://localhost:8123
 ```
 
@@ -420,7 +420,7 @@ After completion you will see:
 
 This is the **critical** step — you define exactly where the car should be parked.
 
-1. Open **http://localhost:5000** → click camera **parking**
+1. Open **http://localhost:8090** → click camera **parking**
 2. Click **Debug** in the left menu
 3. Click **🎛 Settings** → **Edit Zones**
 4. Draw a **polygon** around the parking spot (4 or more points):
@@ -447,8 +447,8 @@ This is the **critical** step — you define exactly where the car should be par
 2. First time: create admin account (any login/password)
 3. **Settings → Devices & Services → Add Integration → "Frigate"**
    - URL:
-     - Linux host mode: `http://localhost:5000`
-     - Docker Desktop / bridge: `http://frigate:5000`
+     - Linux host mode: `http://localhost:8090`
+     - Docker Desktop / bridge: `http://frigate:5000` (internal Docker network — container port)
    - (Other options default)
 4. Frigate will auto-discover the camera, zone, objects — about 10 entities will appear, including:
    - `sensor.parking_parking_spot_car` ← **this one** is used in automation

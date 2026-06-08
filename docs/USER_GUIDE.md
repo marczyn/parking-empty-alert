@@ -79,7 +79,7 @@ Time: 17:32
 
 ## 3. Reading Frigate UI
 
-Open `http://<your-docker-host-IP>:5000`.
+Open `http://<your-docker-host-IP>:8090`.
 
 ### Main sections
 
@@ -596,7 +596,7 @@ docker compose logs --tail 100 mosquitto
 ### Network exposure
 
 Default ports exposed by `docker-compose.yml`:
-- `5000` Frigate UI
+- `8090` Frigate UI
 - `8123` Home Assistant UI
 - `1883` MQTT
 - `8554-8555` Frigate RTSP/WebRTC restream
@@ -765,7 +765,7 @@ This removes everything except saved recordings on the host disk (separate `dock
 | Service | URL | What it provides | If it goes down |
 |---|---|---|---|
 | CallMeBot (WhatsApp gateway) | https://www.callmebot.com/ | Free WhatsApp message delivery API | Switch to Telegram (Section 9 — Advanced) or HA Companion App push |
-| Frigate live demo | https://demo.frigate.video | Public Frigate UI demo (for reference only — not required for setup) | Use your own Frigate UI at `http://<host>:5000` |
+| Frigate live demo | https://demo.frigate.video | Public Frigate UI demo (for reference only — not required for setup) | Use your own Frigate UI at `http://<host>:8090` |
 | Frigate docs | https://docs.frigate.video | Configuration reference | Cached versions on web.archive.org or via GitHub: `blakeblackshear/frigate/docs/` |
 | Home Assistant docs | https://www.home-assistant.io/docs/ | HA reference | GitHub: `home-assistant/home-assistant.io` |
 

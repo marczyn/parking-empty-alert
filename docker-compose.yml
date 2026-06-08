@@ -6,7 +6,7 @@
 # Quick start:
 #   1. Copy .env.example -> .env and fill in passwords + camera IP
 #   2. docker compose up -d
-#   3. Open Frigate UI:  http://<host>:5000
+#   3. Open Frigate UI:  http://<host>:8090
 #   4. Open HA UI:        http://<host>:8123
 #
 # Docker Desktop (macOS/Windows) note:
@@ -107,7 +107,7 @@ services:
         tmpfs:
           size: 1000000000   # 1GB cache in RAM
     ports:
-      - "5000:5000"          # Frigate UI (web)
+      - "8090:5000"          # Frigate UI (web) — 8090 avoids Synology DSM port 5000 conflict
       - "8554:8554"          # RTSP restream — re-publishes camera streams; useful
                              # for viewing in VLC or other RTSP clients without
                              # hitting the camera directly. Remove if not needed.
