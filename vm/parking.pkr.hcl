@@ -15,7 +15,7 @@ variable "variant" {
   description = "full or lite"
   validation {
     condition     = contains(["full", "lite"], var.variant)
-    error_message = "variant must be 'full' or 'lite'"
+    error_message = "Variant must be 'full' or 'lite'."
   }
 }
 
