@@ -76,12 +76,13 @@ source "qemu" "parking" {
   accelerator      = "kvm"
   headless         = true
 
-  boot_wait        = "12s"
+  # TCG (no KVM) is slow — Debian needs ~5-10 min to boot without hardware accel
+  boot_wait        = "90s"
 
   # Packer SSHes in using the temporary password set by build-time cloud-init
   ssh_username     = "debian"
   ssh_password     = "packer-build"
-  ssh_timeout      = "8m"
+  ssh_timeout      = "30m"
 
   shutdown_command = "echo 'packer-build' | sudo -S shutdown -P now"
 
