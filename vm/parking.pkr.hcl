@@ -74,6 +74,7 @@ source "qemu" "parking" {
 
   # Use KVM if available; fall back to TCG (slower but works without /dev/kvm)
   accelerator      = "kvm"
+  headless         = true
 
   boot_wait        = "12s"
 
