@@ -1,0 +1,31 @@
+#cloud-config
+# Build-time cloud-init — only used during Packer image construction.
+# Sets a temporary password so Packer can SSH in, enables sudo, grows disk.
+# This file is NOT present in the final VM image.
+
+users:
+  - name: debian
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: false
+    # "packer-build" — temporary, replaced by provision.sh
+    passwd: "$6$rounds=4096$packer$9TYDkECOlBPasP0T2O7IrVBo7FFUFU0D2Ufil3Vu.2oJb5DPAuPmWUr.h7iXJMnCRqMf6XxHGk.iHBxaVZKr."
+    shell: /bin/bash
+
+ssh_pwauth: true
+chpasswd:
+  expire: false
+
+# Auto-grow partition to full disk size
+growpart:
+  mode: auto
+  devices: ["/"]
+
+resize_rootfs: true
+
+# Ensure apt is fresh
+package_update: true
+package_upgrade: false
+
+packages:
+  - qemu-guest-agent
+  - cloud-guest-utils

@@ -1,0 +1,30 @@
+[Unit]
+Description=parking-empty-alert Docker container
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/parking.env
+# Remove stale container from previous run (if any)
+ExecStartPre=-/usr/bin/docker rm -f parking
+# Run container — image name substituted at provision time
+ExecStart=/usr/bin/docker run \
+    --name parking \
+    --rm \
+    --env-file /etc/parking.env \
+    -p 8090:8090 \
+    -p 8123:8123 \
+    -p 1883:1883 \
+    -p 8554:8554 \
+    -p 8555:8555 \
+    --shm-size=256m \
+    --restart=no \
+    __IMAGE_NAME__
+ExecStop=/usr/bin/docker stop parking
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
