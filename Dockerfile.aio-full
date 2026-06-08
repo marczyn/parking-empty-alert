@@ -79,6 +79,9 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/homeassistant/run && \
 # Pre-baked Frigate config
 RUN mkdir -p /config && \
     cat > /config/config.yml <<'EOF'
+auth:
+  enabled: false
+
 mqtt:
   enabled: true
   host: localhost

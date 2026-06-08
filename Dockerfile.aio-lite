@@ -45,6 +45,9 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/mosquitto/run && \
 # Pre-baked Frigate config — uses env vars at runtime
 RUN mkdir -p /config && \
     cat > /config/config.yml <<'EOF'
+auth:
+  enabled: false
+
 mqtt:
   enabled: true
   host: localhost
