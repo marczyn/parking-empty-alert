@@ -19,7 +19,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, parking]
     steps:
       - name: Delete untagged parking-empty-alert versions
-        uses: actions/delete-package-versions@v5
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5
         with:
           package-name: 'parking-empty-alert'
           package-type: 'container'
@@ -30,7 +30,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, parking]
     steps:
       - name: Delete untagged parking-empty-alert-lite versions
-        uses: actions/delete-package-versions@v5
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5
         with:
           package-name: 'parking-empty-alert-lite'
           package-type: 'container'

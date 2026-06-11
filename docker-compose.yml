@@ -12,6 +12,14 @@
 # Docker Desktop (macOS/Windows) note:
 # `network_mode: host` for Home Assistant only works on Linux.
 # On macOS/Windows, use docker-compose.macwin.yml override (see docs/INSTALLATION.md).
+#
+# Supply-chain note: images are pinned to immutable @sha256 digests (the tag is
+# kept for readability only — the digest is what Docker pulls). This guarantees
+# reproducible deploys and blocks tag-mutation attacks, but means
+# `docker compose pull` will NOT pick up newer upstream images automatically.
+# To intentionally bump to a newer image, refresh the digest, e.g.:
+#   docker buildx imagetools inspect eclipse-mosquitto:2.0 --format '{{.Manifest.Digest}}'
+# then replace the @sha256:... below (review upstream release notes first).
 ###############################################################################
 
 services:
@@ -20,7 +28,7 @@ services:
   # MQTT broker — communication Frigate ↔ Home Assistant
   # ─────────────────────────────────────────────────────────────
   mosquitto:
-    image: eclipse-mosquitto:2.0
+    image: eclipse-mosquitto:2.0@sha256:914f529386804c8278a4e581526b9be5e1604df44b30daabc70aa97dcefe5268
     container_name: mosquitto
     restart: always
     ports:
@@ -61,7 +69,7 @@ services:
   # Frigate — NVR + AI object detection
   # ─────────────────────────────────────────────────────────────
   frigate:
-    image: ghcr.io/blakeblackshear/frigate:stable
+    image: ghcr.io/blakeblackshear/frigate:stable@sha256:1724960349dad0bd2ae8ec884171a6fd5755a4dc242a0e66cadbda9c0e85c99b
     container_name: frigate
     restart: always
     depends_on:
@@ -124,7 +132,7 @@ services:
   # Home Assistant — automations + push notifications
   # ─────────────────────────────────────────────────────────────
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:stable
+    image: ghcr.io/home-assistant/home-assistant:stable@sha256:b82fab7973fa1ba5eb69a8aaab3a830d56d986d495d894faf0ee969ad27839a6
     container_name: homeassistant
     restart: always
     depends_on:
