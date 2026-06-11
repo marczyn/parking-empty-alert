@@ -61,7 +61,7 @@ Include:
 - 🔒 Enable HTTPS for Home Assistant (via reverse proxy with Let's Encrypt)
 - 🔒 Use VPN (WireGuard, Tailscale) or Home Assistant Cloud (Nabu Casa) for remote access
 - 🔒 Enable MQTT TLS (modify `mosquitto.conf` to use port 8883 with certs)
-- 🔒 Run `docker compose pull && docker compose up -d` weekly to receive security patches
+- 🔒 Container images are pinned to immutable `@sha256` digests for supply-chain safety, so `docker compose pull` will **not** auto-update them. Review upstream (Frigate/HA/Mosquitto) security advisories and deliberately bump the digest in `docker-compose.yml` (and the `Dockerfile.aio-*` `FROM` lines) when patches land — see the refresh command in the `docker-compose.yml` header. GitHub Actions are likewise pinned to full commit SHAs in `.github/workflows/`.
 - 🔒 Subscribe to Frigate and HA security advisories
 - 🔒 Set up an isolated VLAN for cameras (cameras can't reach internet or LAN)
 
