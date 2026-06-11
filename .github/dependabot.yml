@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # GitHub Actions versions
+  # GitHub Actions versions (SHA-pinned; Dependabot bumps the SHA and updates the # vX comment)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -10,8 +10,12 @@ updates:
     labels:
       - "ci"
       - "dependencies"
+    # Batch all action bumps into a single weekly PR (less self-hosted CI churn / review fatigue).
+    groups:
+      github-actions:
+        patterns: ["*"]
 
-  # Docker image versions in compose files
+  # Docker image versions (compose + Dockerfiles; pinned to @sha256 — Dependabot bumps the digest)
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -21,3 +25,14 @@ updates:
     labels:
       - "docker"
       - "dependencies"
+    # Batch minor/patch digest bumps into one weekly PR; route MAJOR jumps of the
+    # critical images to manual review so a big HA/Frigate version change isn't rubber-stamped.
+    groups:
+      docker-images:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "ghcr.io/home-assistant/home-assistant"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "ghcr.io/blakeblackshear/frigate"
+        update-types: ["version-update:semver-major"]

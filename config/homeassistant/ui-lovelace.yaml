@@ -44,14 +44,32 @@ views:
                 You can park now.
 
           - type: conditional
+            # All three must hold — so a non-numeric state (unavailable/unknown) does
+            # NOT get reported as OCCUPIED. Only a real count ≥1 shows this card.
             conditions:
               - entity: sensor.parking_parking_spot_car
                 state_not: "0"
+              - entity: sensor.parking_parking_spot_car
+                state_not: "unavailable"
+              - entity: sensor.parking_parking_spot_car
+                state_not: "unknown"
             card:
               type: markdown
               content: |
                 ### 🚫 Spot is OCCUPIED
                 Wait for someone to leave.
+
+          - type: conditional
+            # Frigate offline / sensor not yet initialized — don't show a misleading
+            # FREE/OCCUPIED status when we actually have no data.
+            conditions:
+              - entity: sensor.parking_parking_spot_car
+                state: ["unavailable", "unknown"]
+            card:
+              type: markdown
+              content: |
+                ### ⏳ Detection offline
+                Parking status unknown — Frigate is unavailable.
 
       # ─── Live camera ───
       - type: picture-entity

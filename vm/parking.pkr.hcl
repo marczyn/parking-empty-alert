@@ -53,8 +53,12 @@ variable "debian_checksum" {
 # ── Locals ─────────────────────────────────────────────────────────────────────
 
 locals {
-  vm_name    = "parking-empty-alert-${var.variant}-${var.version}"
-  image_name = var.variant == "full" ? "ghcr.io/marczyn/parking-empty-alert:latest" : "ghcr.io/marczyn/parking-empty-alert-lite:latest"
+  vm_name = "parking-empty-alert-${var.variant}-${var.version}"
+  # Pin the OVA to the immutable per-release image tag (NOT mutable :latest) so each
+  # shipped appliance runs exactly the image it was built/validated against. The
+  # docker-publish workflow tags images ":v<release>" (e.g. v1.0.2) and build-vm passes
+  # the v-stripped version, so prepend 'v' here to match the published tag.
+  image_name = var.variant == "full" ? "ghcr.io/marczyn/parking-empty-alert:v${var.version}" : "ghcr.io/marczyn/parking-empty-alert-lite:v${var.version}"
 }
 
 # ── Source ─────────────────────────────────────────────────────────────────────

@@ -14,9 +14,9 @@ permissions:
   contents: write   # upload release assets
 
 env:
+  # Consumed in-shell as "$VERSION" inside each "Resolve version" step (never ${{ }}
+  # template-expanded into a command line). The 'v' prefix is stripped there with ${V#v}.
   VERSION: ${{ github.event.inputs.version || github.event.release.tag_name || 'dev' }}
-  # Strip leading 'v' from tag (v1.0.2 → 1.0.2)
-  VERSION_CLEAN: ${{ github.event.inputs.version || '' }}
 
 jobs:
 
@@ -50,6 +50,10 @@ jobs:
           V="$VERSION"   # consume the env var in-shell, never ${{ }} template-expand untrusted input
           # Strip leading 'v' if present
           V="${V#v}"
+          # Allowlist: only version-safe chars, so the value can never carry shell metacharacters
+          case "$V" in
+            ''|*[!A-Za-z0-9._-]*) echo "::error::invalid version '$V' (allowed: A-Za-z0-9 . _ -)"; exit 1 ;;
+          esac
           echo "version=${V}" >> "$GITHUB_OUTPUT"
 
       - name: Cache Debian cloud image
@@ -80,10 +84,13 @@ jobs:
         env:
           PACKER_CACHE_DIR: ~/.packer-cache
           PACKER_LOG: 1
+          # Consume the resolved version as a shell var — never ${{ }} template-expand it
+          # into the command line (command-injection sink). Already allowlist-validated above.
+          VER: ${{ steps.version.outputs.version }}
         run: |
           packer build \
             -var "variant=full" \
-            -var "version=${{ steps.version.outputs.version }}" \
+            -var "version=$VER" \
             vm/parking.pkr.hcl
 
       - name: Upload full OVA as artifact
@@ -105,6 +112,9 @@ jobs:
         run: |
           V="$VERSION"   # consume the env var in-shell, never ${{ }} template-expand untrusted input
           V="${V#v}"
+          case "$V" in
+            ''|*[!A-Za-z0-9._-]*) echo "::error::invalid version '$V' (allowed: A-Za-z0-9 . _ -)"; exit 1 ;;
+          esac
           echo "version=${V}" >> "$GITHUB_OUTPUT"
 
       - name: Cache Debian cloud image
@@ -135,10 +145,13 @@ jobs:
         env:
           PACKER_CACHE_DIR: ~/.packer-cache
           PACKER_LOG: 1
+          # Consume the resolved version as a shell var — never ${{ }} template-expand it
+          # into the command line (command-injection sink). Already allowlist-validated above.
+          VER: ${{ steps.version.outputs.version }}
         run: |
           packer build \
             -var "variant=lite" \
-            -var "version=${{ steps.version.outputs.version }}" \
+            -var "version=$VER" \
             vm/parking.pkr.hcl
 
       - name: Upload lite OVA as artifact
@@ -159,6 +172,9 @@ jobs:
         run: |
           V="$VERSION"   # consume the env var in-shell, never ${{ }} template-expand untrusted input
           V="${V#v}"
+          case "$V" in
+            ''|*[!A-Za-z0-9._-]*) echo "::error::invalid version '$V' (allowed: A-Za-z0-9 . _ -)"; exit 1 ;;
+          esac
           echo "version=${V}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4

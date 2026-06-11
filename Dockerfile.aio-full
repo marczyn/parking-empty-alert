@@ -88,6 +88,10 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/homeassistant/run && \
 # Pre-baked Frigate config
 RUN mkdir -p /config && \
     cat > /config/config.yml <<'EOF'
+# auth disabled by design: this all-in-one is a plug-and-play LAN appliance and the
+# Frigate UI (8090) is meant for a TRUSTED local network only. Do NOT publish 8090/8123
+# to an untrusted network — bind to loopback / a reverse proxy with auth instead
+# (e.g. -p 127.0.0.1:8090:8090). See SECURITY.md.
 auth:
   enabled: false
 
@@ -137,7 +141,10 @@ EOF
 
 # Pre-baked HA config — minimal set to avoid broken default_config deps (HA 2024+)
 RUN cat > /opt/ha-config/configuration.yaml <<'EOF'
-http: {}
+http:
+  # Brute-force protection on the HA login (the dashboard has no auth in front of it).
+  ip_ban_enabled: true
+  login_attempts_threshold: 5
 frontend: {}
 websocket_api:
 
@@ -171,9 +178,20 @@ EOF
 RUN mkdir -p /etc/cont-init.d && \
     cat > /etc/cont-init.d/10-ha-config.sh <<'EOF'
 #!/bin/sh
+set -e
+# Required secrets must be supplied at runtime (-e ...). No insecure baked defaults:
+# fail fast with a clear message instead of silently running with placeholder creds.
+: "${FRIGATE_RTSP_PASSWORD:?must be set, e.g. docker run -e FRIGATE_RTSP_PASSWORD=...}"
+: "${WHATSAPP_PHONE:?must be set, e.g. docker run -e WHATSAPP_PHONE=...}"
+: "${WHATSAPP_APIKEY:?must be set, e.g. docker run -e WHATSAPP_APIKEY=...}"
+
+# Escape sed replacement metacharacters (/ & \) so values with those chars
+# (e.g. an apikey containing '/') don't corrupt the substitution or fail init.
+sed_escape() { printf '%s' "$1" | sed -e 's/[\/&]/\\&/g'; }
+
 if [ -f /opt/ha-config/configuration.yaml ]; then
-  sed -i "s/PLACEHOLDER_PHONE/${WHATSAPP_PHONE:-48501234567}/g" /opt/ha-config/configuration.yaml
-  sed -i "s/PLACEHOLDER_APIKEY/${WHATSAPP_APIKEY:-1234567}/g" /opt/ha-config/configuration.yaml
+  sed -i "s/PLACEHOLDER_PHONE/$(sed_escape "$WHATSAPP_PHONE")/g" /opt/ha-config/configuration.yaml
+  sed -i "s/PLACEHOLDER_APIKEY/$(sed_escape "$WHATSAPP_APIKEY")/g" /opt/ha-config/configuration.yaml
 fi
 # Create MQTT config entry if not already present (broker: removed from yaml in HA 2024.1)
 mkdir -p /opt/ha-config/.storage
@@ -185,12 +203,13 @@ fi
 EOF
 RUN chmod +x /etc/cont-init.d/10-ha-config.sh
 
-# Defaults — user overrides via docker -e or compose
+# Non-secret defaults only — user overrides via docker -e or compose.
+# Secrets (FRIGATE_RTSP_PASSWORD, WHATSAPP_PHONE, WHATSAPP_APIKEY) are deliberately
+# NOT given baked defaults: a baked secret persists in image layers / `docker inspect`,
+# and a 'changeme' default silently runs with a known-weak credential. The cont-init
+# script fails fast if they are not provided at runtime.
 ENV FRIGATE_CAMERA_IP=192.168.1.100
 ENV FRIGATE_RTSP_USER=frigate
-ENV FRIGATE_RTSP_PASSWORD=changeme
-ENV WHATSAPP_PHONE=48501234567
-ENV WHATSAPP_APIKEY=1234567
 
 # 1883 (MQTT) is intentionally NOT exposed — the broker is localhost-only and
 # used only by the in-container Frigate + Home Assistant.

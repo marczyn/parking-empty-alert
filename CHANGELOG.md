@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- **CI no longer runs untrusted fork-PR code on the self-hosted runner** — `ci.yml` jobs are gated to pushes and same-repo PRs only (`pull_request.head.repo.full_name == github.repository`), closing an RCE path on the persistent `parking` runner that also builds OVAs / pushes images. ([`ci.yml`](.github/workflows/ci.yml))
+- **MQTT broker no longer published to the LAN** — the host port is bound to `127.0.0.1` (was `0.0.0.0`). In-stack clients use the Docker bridge / their configured broker, so nothing breaks, but plaintext MQTT credentials/topics are no longer sniffable or spoofable from the network. ([`docker-compose.yml`](docker-compose.yml))
+- **`setup.sh` no longer shell-evaluates `.env`** — replaced `source .env` (a command-injection sink for a camera password like `a$(...)b`) with a literal key=value loader; `.env` values are single-quoted and RTSP credentials reject single quotes. Fixed a `.env` permission regression to `0644` after the HA-admin rewrite (now `0600`). ([`setup.sh`](scripts/setup.sh))
+- **`build-vm.yml` packer build hardened** — the version is consumed via an env var instead of `${{ }}`-expansion into the shell, and is allowlist-validated (command-injection on the self-hosted runner). ([`build-vm.yml`](.github/workflows/build-vm.yml))
+- **AIO images** — removed baked secret `ENV` defaults (`changeme` / placeholder apikey) in favor of fail-fast on missing runtime secrets; added HA login brute-force protection (`ip_ban_enabled`, `login_attempts_threshold`); escaped `sed` substitution of WhatsApp values. Frigate auth stays disabled by design (trusted-LAN appliance) with explicit warnings. ([`Dockerfile.aio-full`](Dockerfile.aio-full), [`Dockerfile.aio-lite`](Dockerfile.aio-lite))
+- **First-boot VM wizard** — replaced `eval` assignment (quote-breakout) with `printf -v`; the secrets file is created mode `0600`; the API key is masked in the summary. ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
+- **`restore.sh`** — rejects absolute / `..` traversal members before extracting a (possibly off-host) backup archive. ([`restore.sh`](scripts/restore.sh))
+- **Pre-commit secret scanner** — now inspects the staged blob and requires every secret field to still equal its template (was an easily-bypassed any-one-placeholder check). ([`install-git-hooks.sh`](scripts/install-git-hooks.sh))
+
+### Fixed
+
+- **First-boot wizard no longer locks in a broken appliance** — a failed image pull / service start now aborts (and retries next boot) instead of printing "Setup complete" and writing the `configured` sentinel. ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
+- **No more false "Frigate recovered" alert on every HA restart** — the recovered watchdog fires only after a real >10-min outage (tracked via an `input_boolean`); both watchdogs also catch the `unknown` state. ([`automations.yaml`](config/homeassistant/automations.yaml), [`configuration.yaml`](config/homeassistant/configuration.yaml))
+- **Dashboard no longer reports "Spot OCCUPIED" when detection is offline** — added an unavailable/unknown card and tightened the OCCUPIED condition. ([`ui-lovelace.yaml`](config/homeassistant/ui-lovelace.yaml))
+- **A `bus` in the spot now counts as occupied** — the `parking_spot` zone was missing `bus` (tracked but never occupying). ([`frigate.yml`](config/frigate.yml))
+- **Package cleanup** only runs after a successful build, and its keep-count default (2) now matches on both the manual and automated paths. ([`cleanup-old-packages.yml`](.github/workflows/cleanup-old-packages.yml))
+
+### Changed
+
+- **VM/OVA pins the app image** to the immutable `:v<version>` tag instead of mutable `:latest`, so each appliance runs exactly the validated image. ([`parking.pkr.hcl`](vm/parking.pkr.hcl))
+- **Dependabot** batches action/image bumps into grouped weekly PRs and routes major HA/Frigate jumps to manual review; removed the dead `VERSION_CLEAN` env var. ([`dependabot.yml`](.github/dependabot.yml), [`build-vm.yml`](.github/workflows/build-vm.yml))
+
+---
+
 ## [1.0.2] — 2026-06-08
 
 ### Fixed
