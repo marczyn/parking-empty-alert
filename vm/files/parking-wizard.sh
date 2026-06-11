@@ -65,20 +65,29 @@ finalize() {
     systemctl enable parking.service 2>/dev/null || true
     systemctl start  parking.service 2>/dev/null || true
     # parking.service is Type=simple running `docker run`, so the unit reports 'active'
-    # the instant the docker CLI starts — even while it is still pulling. Poll until the
-    # CONTAINER is actually Running (or the unit fails) before writing the sentinel, so a
-    # failed/slow inline pull cannot lock in a broken appliance.
-    local i
-    for i in $(seq 1 15); do
-        if systemctl is-failed --quiet parking.service; then break; fi
+    # the instant the docker CLI starts. And for the s6-based all-in-one image,
+    # .State.Running is true the moment PID 1 (/init) starts — BEFORE cont-init and the
+    # bundled services come up. A SINGLE Running observation therefore doesn't prove the
+    # container stayed up: a cont-init `set -e` failure, a service abort, or an OOM seconds
+    # later would crash it, and `docker run --rm` then erases it while the sentinel is
+    # already written. So require the container to be CONTINUOUSLY Running across a settle
+    # window (and the unit not failed) before locking in the sentinel.
+    local i running=0
+    for i in $(seq 1 20); do
+        if systemctl is-failed --quiet parking.service; then running=0; break; fi
         if [ "$(docker inspect -f '{{.State.Running}}' parking 2>/dev/null)" = "true" ]; then
-            mkdir -p /var/lib/parking
-            touch "$SENTINEL"
-            return 0
+            running=$((running + 1))
+            if [ "$running" -ge 6 ]; then          # ~12s continuously up = stable enough
+                mkdir -p /var/lib/parking
+                touch "$SENTINEL"
+                return 0
+            fi
+        else
+            running=0                              # crashed/removed — reset the streak
         fi
         sleep 2
     done
-    printf "${RED}ERROR: parking container did not come up — NOT marking setup complete.${RESET}\n"
+    printf "${RED}ERROR: parking container did not stay up — NOT marking setup complete.${RESET}\n"
     printf "  It will retry on next boot. Inspect with: journalctl -u parking ; docker logs parking\n"
     return 1
 }

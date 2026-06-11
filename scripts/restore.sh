@@ -51,6 +51,13 @@ if tar tzf "$BACKUP_FILE" | grep -qE '(^/|(^|/)\.\.(/|$))'; then
   echo "❌ Refusing to restore: archive contains absolute or '..' paths (possible path traversal)."
   exit 1
 fi
+# Name-only checks are blind to symlink/hardlink TARGETS: a member symlinking `config`->/etc
+# then a regular `config/passwd` would write through the link, escaping -C. Reject any link
+# member (the long-listing type char is 'l'/'h'); backup.sh never creates links.
+if tar tvzf "$BACKUP_FILE" | grep -qE '^[lh]'; then
+  echo "❌ Refusing to restore: archive contains symlink/hardlink members (possible traversal)."
+  exit 1
+fi
 tar xzf "$BACKUP_FILE" -C "$PWD"
 
 # Restore safe permissions on secret files
