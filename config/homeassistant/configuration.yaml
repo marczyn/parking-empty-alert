@@ -48,24 +48,26 @@ recorder:
       - service_registered
 
 # ─────────────────────────────────────────────────────────────
-# HTTP / reverse proxy support
-# Uncomment and edit if HA is behind a reverse proxy (NPM, Traefik, SWAG, etc.).
-# Without this, HA rejects requests with 'WrongHostError'.
+# HTTP — brute-force protection (always on) + optional reverse-proxy support
+# ip_ban_enabled + login_attempts_threshold harden the login page against
+# password-guessing on the LAN (the dashboard has no auth in front of it by
+# default). These are safe everywhere and do not require a reverse proxy.
 # ─────────────────────────────────────────────────────────────
-# http:
-#   use_x_forwarded_for: true
-#   trusted_proxies:
-#     # Narrow to your reverse proxy's actual IP, NOT broad RFC1918 ranges!
-#     # Examples (uncomment ONE that matches your reverse proxy):
-#     # - 172.18.0.0/16        # specific Docker bridge subnet (use `docker network inspect`)
-#     # - 192.168.1.10/32      # specific reverse proxy host
-#     # - 127.0.0.1            # localhost-only proxy
-#     #
-#     # ⚠️ AVOID broad ranges like 192.168.0.0/16 — they trust your entire LAN
-#     # to forge X-Forwarded-For headers, which defeats HA's IP-based auth!
-#   # If exposed to internet, also set:
-#   # ip_ban_enabled: true
-#   # login_attempts_threshold: 5
+http:
+  ip_ban_enabled: true
+  login_attempts_threshold: 5
+  # ── Reverse proxy (NPM, Traefik, SWAG, …) ──
+  # Uncomment if HA is behind a reverse proxy, else HA rejects requests with
+  # 'WrongHostError'. Keep these UNDER this same http: block (don't add a 2nd one).
+  # use_x_forwarded_for: true
+  # trusted_proxies:
+  #   # Narrow to your reverse proxy's actual IP, NOT broad RFC1918 ranges!
+  #   # - 172.18.0.0/16        # specific Docker bridge subnet (use `docker network inspect`)
+  #   # - 192.168.1.10/32      # specific reverse proxy host
+  #   # - 127.0.0.1            # localhost-only proxy
+  #   #
+  #   # ⚠️ AVOID broad ranges like 192.168.0.0/16 — they trust your entire LAN
+  #   # to forge X-Forwarded-For headers, which defeats HA's IP-based auth!
 
 # ─────────────────────────────────────────────────────────────
 # MQTT broker connection
@@ -112,6 +114,13 @@ notify:
       phone: !secret whatsapp_phone
       apikey: !secret whatsapp_apikey
     verify_ssl: true
+
+# Outage-state flag used by the Frigate offline/recovered watchdogs so the
+# "recovered" alert only fires after a real >10-min outage (not on every restart).
+input_boolean:
+  parking_frigate_offline:
+    name: Parking Frigate offline
+    icon: mdi:cctv-off
 
 automation: !include automations.yaml
 script: !include scripts.yaml

@@ -32,7 +32,14 @@ services:
     container_name: mosquitto
     restart: always
     ports:
-      - "1883:1883"
+      # Publish ONLY to loopback. In-stack clients do NOT use this host port — Frigate
+      # connects over the internal bridge (broker host "mosquitto") and Home Assistant
+      # uses its configured broker ("mosquitto"); this published port only ever served
+      # external MQTT clients. MQTT/1883 is plaintext, so a 0.0.0.0 publish would let
+      # anyone on the LAN sniff the credentials and spoof parking state — keep it on
+      # loopback (host-local tools can still reach 127.0.0.1:1883). For a genuine remote
+      # client, add a TLS listener instead of exposing plaintext 1883.
+      - "127.0.0.1:1883:1883"
     volumes:
       - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       # NOTE: ./config/passwd MUST exist before 'docker compose up'.

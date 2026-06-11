@@ -33,11 +33,19 @@ if git diff --cached --name-only | grep -qE 'config/passwd$|config/.*/passwd$'; 
   ERRORS=$((ERRORS+1))
 fi
 
-# Check secrets.yaml — must contain placeholder values
+# Check secrets.yaml — scan the STAGED BLOB (not the working tree) and require EVERY
+# secret field to still equal its template value. A positive per-field assertion (vs the
+# old "any one placeholder substring exists" check) blocks a file that mixes a real
+# mqtt_password with an unedited example apikey line.
 if git diff --cached --name-only | grep -q 'config/homeassistant/secrets.yaml$'; then
-  if ! grep -qE '(change_this|zmien_to|1234567|placeholder|TEMPLATE)' config/homeassistant/secrets.yaml; then
-    echo "❌ secrets.yaml looks like real values, not template!"
-    echo "   Verify it has placeholder strings before committing."
+  SECRETS_BLOB=$(git show ":config/homeassistant/secrets.yaml" 2>/dev/null || true)
+  SECRETS_BAD=0
+  printf '%s\n' "$SECRETS_BLOB" | grep -qE '^[[:space:]]*mqtt_password:[[:space:]]*change_this_password_too[[:space:]]*$'    || SECRETS_BAD=1
+  printf '%s\n' "$SECRETS_BLOB" | grep -qE '^[[:space:]]*whatsapp_phone:[[:space:]]*"?48501234567"?[[:space:]]*$'           || SECRETS_BAD=1
+  printf '%s\n' "$SECRETS_BLOB" | grep -qE '^[[:space:]]*whatsapp_apikey:[[:space:]]*"?1234567"?[[:space:]]*$'              || SECRETS_BAD=1
+  if [ "$SECRETS_BAD" -ne 0 ]; then
+    echo "❌ secrets.yaml has non-placeholder (real?) values — every secret field must still"
+    echo "   equal its template (mqtt_password / whatsapp_phone / whatsapp_apikey)."
     echo "   Real values for that file go into .env (which is gitignored)."
     ERRORS=$((ERRORS+1))
   fi

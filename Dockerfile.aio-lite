@@ -53,6 +53,9 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/mosquitto/run && \
 # Pre-baked Frigate config — uses env vars at runtime
 RUN mkdir -p /config && \
     cat > /config/config.yml <<'EOF'
+# auth disabled by design: plug-and-play LAN appliance; the Frigate UI (8090) is for a
+# TRUSTED local network only. Do NOT publish 8090 to an untrusted network — bind to
+# loopback / a reverse proxy with auth (e.g. -p 127.0.0.1:8090:8090). See SECURITY.md.
 auth:
   enabled: false
 
@@ -100,10 +103,20 @@ cameras:
       retain: {days: 3, mode: motion}
 EOF
 
-# Environment variables with sane defaults
+# Non-secret defaults only. FRIGATE_RTSP_PASSWORD is deliberately NOT defaulted:
+# a baked secret persists in image layers / `docker inspect`, and a 'changeme' default
+# silently runs with a known-weak credential. The cont-init guard below fails fast if
+# it is not supplied at runtime.
 ENV FRIGATE_CAMERA_IP=192.168.1.100
 ENV FRIGATE_RTSP_USER=frigate
-ENV FRIGATE_RTSP_PASSWORD=changeme
+
+# Fail fast if the required RTSP secret was not provided at runtime (-e ...).
+RUN mkdir -p /etc/cont-init.d && \
+    cat > /etc/cont-init.d/01-require-secrets.sh <<'EOF'
+#!/bin/sh
+: "${FRIGATE_RTSP_PASSWORD:?must be set, e.g. docker run -e FRIGATE_RTSP_PASSWORD=...}"
+EOF
+RUN chmod +x /etc/cont-init.d/01-require-secrets.sh
 
 # 1883 (MQTT) is intentionally NOT exposed — the broker is localhost-only.
 EXPOSE 8090 8554 8555

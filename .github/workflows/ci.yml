@@ -14,6 +14,11 @@ permissions:
 jobs:
   validate:
     name: Validate configs
+    # SECURITY: the self-hosted 'parking' runner is persistent (not ephemeral) and also
+    # builds OVAs / pushes images. NEVER run untrusted fork-PR code on it. This guard
+    # runs CI only for pushes and for same-repo PRs (trusted); PRs opened from a fork
+    # are skipped here and must be validated by a maintainer out-of-band.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, linux, x64, parking]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -110,6 +115,8 @@ jobs:
   shellcheck:
     name: ShellCheck scripts
     needs: validate          # skip if YAML invalid
+    # SECURITY: same-repo / push only — never run fork-PR scripts on the self-hosted runner.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, linux, x64, parking]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -134,6 +141,8 @@ jobs:
   frigate-config:
     name: Frigate config schema validation
     needs: validate          # skip if YAML invalid
+    # SECURITY: same-repo / push only — never docker-run fork-PR configs on the self-hosted runner.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, linux, x64, parking]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

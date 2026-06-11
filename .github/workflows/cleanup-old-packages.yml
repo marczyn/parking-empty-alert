@@ -16,6 +16,9 @@ permissions:
 
 jobs:
   cleanup-full:
+    # Only clean up after a SUCCESSFUL build (or a manual dispatch) — don't prune
+    # packages following a failed/cancelled build run.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, linux, x64, parking]
     steps:
       - name: Delete untagged parking-empty-alert versions
@@ -23,10 +26,12 @@ jobs:
         with:
           package-name: 'parking-empty-alert'
           package-type: 'container'
-          min-versions-to-keep: ${{ github.event.inputs.keep || '3' }}
+          # Default matches the workflow_dispatch input default ('2') on both paths.
+          min-versions-to-keep: ${{ github.event.inputs.keep || '2' }}
           delete-only-untagged-versions: 'true'
 
   cleanup-lite:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: [self-hosted, linux, x64, parking]
     steps:
       - name: Delete untagged parking-empty-alert-lite versions
@@ -34,5 +39,5 @@ jobs:
         with:
           package-name: 'parking-empty-alert-lite'
           package-type: 'container'
-          min-versions-to-keep: ${{ github.event.inputs.keep || '3' }}
+          min-versions-to-keep: ${{ github.event.inputs.keep || '2' }}
           delete-only-untagged-versions: 'true'

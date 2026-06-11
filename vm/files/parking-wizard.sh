@@ -36,7 +36,9 @@ ask() {
         fi
         value="${value:-$default}"
         if [ -n "$value" ]; then
-            eval "$varname='$value'"
+            # printf -v assigns the literal string — no eval, so a value containing a
+            # single quote or $(...) can neither break out nor execute (bash 5.x on Debian 12).
+            printf -v "$varname" '%s' "$value"
             return 0
         fi
         printf "${RED}Required — cannot be empty.${RESET}\n"
@@ -55,14 +57,29 @@ validate_ip() {
     return 1
 }
 
+# Enable + start the service, confirm it is actually RUNNING, and only then write the
+# 'configured' sentinel. If the service never comes up (e.g. first-boot image pull
+# failed), leaving the sentinel absent means the wizard retries on the next boot
+# instead of permanently locking in a broken appliance behind a green "Setup complete".
+finalize() {
+    systemctl enable parking.service 2>/dev/null || true
+    systemctl start  parking.service 2>/dev/null || true
+    sleep 2
+    if ! systemctl is-active --quiet parking.service; then
+        printf "${RED}ERROR: parking.service did not start — NOT marking setup complete.${RESET}\n"
+        printf "  It will retry on next boot. Inspect with: journalctl -u parking\n"
+        return 1
+    fi
+    mkdir -p /var/lib/parking
+    touch "$SENTINEL"
+    return 0
+}
+
 # ── Check for pre-populated env file (cloud-init / automated deploy) ──────────
 if [ -f "$ENV_FILE" ]; then
     echo ""
     printf "${GREEN}[parking]${RESET} Configuration found at %s — skipping wizard.\n" "$ENV_FILE"
-    systemctl enable parking.service 2>/dev/null || true
-    systemctl start  parking.service 2>/dev/null || true
-    mkdir -p /var/lib/parking
-    touch "$SENTINEL"
+    finalize || exit 1
     exit 0
 fi
 
@@ -119,7 +136,7 @@ printf "  RTSP user  : %s\n" "$RTSP_USER"
 printf "  RTSP pass  : %s\n" "$(echo "$RTSP_PASSWORD" | sed 's/./*/g')"
 if [ "$VARIANT" = "full" ]; then
     printf "  WhatsApp   : +%s\n" "$WHATSAPP_PHONE"
-    printf "  API key    : %s\n" "$WHATSAPP_APIKEY"
+    printf "  API key    : %s\n" "$(echo "$WHATSAPP_APIKEY" | sed 's/./*/g')"
 fi
 printf "\n"
 
@@ -133,7 +150,10 @@ fi
 # ── Write env file ─────────────────────────────────────────────────────────────
 printf "\n${BOLD}Writing configuration...${RESET}\n"
 
-cat > "$ENV_FILE" <<EOF
+# Pre-create the secrets file mode 0600 so the RTSP password / API key are never
+# world-readable, not even in the window between creation and the chmod below.
+install -m 600 /dev/null "$ENV_FILE"
+cat >> "$ENV_FILE" <<EOF
 FRIGATE_CAMERA_IP=${CAMERA_IP}
 FRIGATE_RTSP_USER=${RTSP_USER}
 FRIGATE_RTSP_PASSWORD=${RTSP_PASSWORD}
@@ -150,15 +170,16 @@ chmod 600 "$ENV_FILE"
 
 # ── Pull Docker image ──────────────────────────────────────────────────────────
 printf "${BOLD}Pulling Docker image (first run — may take several minutes)...${RESET}\n\n"
-docker pull "$IMAGE_NAME" 2>&1 | grep -E 'Pulling|Pull complete|Digest|Status' || true
+# Check the pull result explicitly — do NOT swallow failures (no network at first boot,
+# registry outage, rate-limit). A failed pull must abort so the wizard retries next boot.
+if ! docker pull "$IMAGE_NAME"; then
+    printf "\n${RED}ERROR: Docker image pull failed — check network/registry, then reboot to retry.${RESET}\n"
+    exit 1
+fi
 
 # ── Start service ──────────────────────────────────────────────────────────────
 printf "\n${BOLD}Starting parking service...${RESET}\n"
-systemctl enable parking.service
-systemctl start  parking.service
-
-mkdir -p /var/lib/parking
-touch "$SENTINEL"
+finalize || exit 1
 
 # ── Done ───────────────────────────────────────────────────────────────────────
 HOST_IP=$(ip route get 1 2>/dev/null | awk '{print $7; exit}' || echo "<this-machine-ip>")

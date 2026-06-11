@@ -42,10 +42,16 @@ fi
 echo "Stopping containers..."
 docker compose down 2>/dev/null || true
 
-# Extract backup — --overwrite flag for cross-platform consistency
-# (GNU tar default; BSD/macOS tar may prompt without explicit flag)
+# Extract backup. A backup may have been copied from another host (backup.sh documents
+# scp / the 3-2-1 rule), so treat the archive as semi-trusted: reject absolute paths and
+# '..' traversal members BEFORE extracting, and confine extraction to the project dir.
+# (No `2>/dev/null` — tar's own warnings must stay visible.)
 echo "Extracting $BACKUP_FILE..."
-tar xzf "$BACKUP_FILE" --overwrite 2>/dev/null || tar xzf "$BACKUP_FILE"
+if tar tzf "$BACKUP_FILE" | grep -qE '(^/|(^|/)\.\.(/|$))'; then
+  echo "❌ Refusing to restore: archive contains absolute or '..' paths (possible path traversal)."
+  exit 1
+fi
+tar xzf "$BACKUP_FILE" -C "$PWD"
 
 # Restore safe permissions on secret files
 [ -f .env ] && chmod 600 .env
