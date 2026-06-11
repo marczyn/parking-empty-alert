@@ -19,7 +19,10 @@ jobs:
     # Only clean up after a SUCCESSFUL build (or a manual dispatch) — don't prune
     # packages following a failed/cancelled build run.
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: [self-hosted, linux, x64, parking]
+    # API-only (delete-package-versions) — run on an ephemeral GitHub-hosted runner, not
+    # the persistent self-hosted build host, to isolate this destructive packages:write
+    # step and decouple GC from that runner's availability.
+    runs-on: ubuntu-latest
     steps:
       - name: Delete untagged parking-empty-alert versions
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5
@@ -32,7 +35,10 @@ jobs:
 
   cleanup-lite:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
-    runs-on: [self-hosted, linux, x64, parking]
+    # API-only (delete-package-versions) — run on an ephemeral GitHub-hosted runner, not
+    # the persistent self-hosted build host, to isolate this destructive packages:write
+    # step and decouple GC from that runner's availability.
+    runs-on: ubuntu-latest
     steps:
       - name: Delete untagged parking-empty-alert-lite versions
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5

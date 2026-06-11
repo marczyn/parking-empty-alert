@@ -75,17 +75,21 @@ http:
 # ⚠️ NOTE: HA 2024.10+ deprecated YAML mqtt config in favor of UI setup.
 # This block still works through HA 2026.x but logs a deprecation warning.
 #
+# ⚠️ BROKER HOST depends on HA's network mode:
+#   - Linux default (docker-compose.yml): HA runs `network_mode: host`, so it CANNOT
+#     resolve the Docker service name `mosquitto` (host namespace has no Docker DNS).
+#     It reaches the broker via the loopback-published port → broker: 127.0.0.1.
+#   - Docker Desktop (macwin override): HA is bridged and sets MQTT_BROKER via env.
+# The broker host is therefore taken from the MQTT_BROKER env var (default 127.0.0.1),
+# which docker-compose sets per deployment. Port/username/password unchanged.
+#
 # RECOMMENDED for new installs: remove this block and configure MQTT via
-# Settings → Devices & Services → Add Integration → MQTT
-# - Broker: mosquitto
-# - Port: 1883
-# - Username: frigate
-# - Password: (from secrets.yaml or .env MQTT_PASSWORD)
+# Settings → Devices & Services → Add Integration → MQTT (same broker host as above).
 #
 # Kept as YAML here for zero-touch setup via setup.sh.
 # ─────────────────────────────────────────────────────────────
 mqtt:
-  broker: mosquitto
+  broker: !env_var MQTT_BROKER 127.0.0.1
   port: 1883
   username: !secret mqtt_user
   password: !secret mqtt_password
@@ -121,6 +125,10 @@ input_boolean:
   parking_frigate_offline:
     name: Parking Frigate offline
     icon: mdi:cctv-off
+    # Always start cleared on HA boot — the flag tracks an outage WITHIN the current
+    # session only. Without this it persists across restarts and could fire a spurious
+    # "Frigate back online" alert after a restart with a perfectly healthy Frigate.
+    initial: off
 
 automation: !include automations.yaml
 script: !include scripts.yaml

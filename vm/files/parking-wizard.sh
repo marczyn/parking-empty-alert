@@ -64,21 +64,35 @@ validate_ip() {
 finalize() {
     systemctl enable parking.service 2>/dev/null || true
     systemctl start  parking.service 2>/dev/null || true
-    sleep 2
-    if ! systemctl is-active --quiet parking.service; then
-        printf "${RED}ERROR: parking.service did not start — NOT marking setup complete.${RESET}\n"
-        printf "  It will retry on next boot. Inspect with: journalctl -u parking\n"
-        return 1
-    fi
-    mkdir -p /var/lib/parking
-    touch "$SENTINEL"
-    return 0
+    # parking.service is Type=simple running `docker run`, so the unit reports 'active'
+    # the instant the docker CLI starts — even while it is still pulling. Poll until the
+    # CONTAINER is actually Running (or the unit fails) before writing the sentinel, so a
+    # failed/slow inline pull cannot lock in a broken appliance.
+    local i
+    for i in $(seq 1 15); do
+        if systemctl is-failed --quiet parking.service; then break; fi
+        if [ "$(docker inspect -f '{{.State.Running}}' parking 2>/dev/null)" = "true" ]; then
+            mkdir -p /var/lib/parking
+            touch "$SENTINEL"
+            return 0
+        fi
+        sleep 2
+    done
+    printf "${RED}ERROR: parking container did not come up — NOT marking setup complete.${RESET}\n"
+    printf "  It will retry on next boot. Inspect with: journalctl -u parking ; docker logs parking\n"
+    return 1
 }
 
 # ── Check for pre-populated env file (cloud-init / automated deploy) ──────────
 if [ -f "$ENV_FILE" ]; then
     echo ""
     printf "${GREEN}[parking]${RESET} Configuration found at %s — skipping wizard.\n" "$ENV_FILE"
+    # Pull explicitly (with abort) like the interactive path — don't rely on the
+    # service's inline pull, so a failed pull retries next boot instead of locking in.
+    if ! docker pull "$IMAGE_NAME"; then
+        printf "${RED}ERROR: Docker image pull failed — check network/registry, then reboot to retry.${RESET}\n"
+        exit 1
+    fi
     finalize || exit 1
     exit 0
 fi
