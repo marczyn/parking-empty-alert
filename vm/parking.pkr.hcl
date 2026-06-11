@@ -21,7 +21,7 @@ variable "variant" {
 
 variable "version" {
   type    = string
-  default = "1.0.2"
+  default = "1.1.0"
 }
 
 variable "disk_size" {

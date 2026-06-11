@@ -2,12 +2,12 @@
 ###############################################################################
 # parking-empty-alert — ALL-IN-ONE (Full)
 # Frigate + Mosquitto + Home Assistant in single container with s6-overlay.
-# Ports: 8090 (Frigate UI), 8123 (HA), 1883 (MQTT)
+# Ports: 8090 (Frigate UI), 8123 (HA). MQTT (1883) is in-container only — NOT published.
 #
-# Run:  docker run -d -p 8090:8090 -p 8123:8123 -p 1883:1883 \
-#         -e CAMERA_IP=192.168.1.100 \
-#         -e RTSP_USER=frigate \
-#         -e RTSP_PASSWORD=yourpassword \
+# Run:  docker run -d -p 8090:8090 -p 8123:8123 \
+#         -e FRIGATE_CAMERA_IP=192.168.1.100 \
+#         -e FRIGATE_RTSP_USER=frigate \
+#         -e FRIGATE_RTSP_PASSWORD=yourpassword \
 #         -e WHATSAPP_PHONE=48501234567 \
 #         -e WHATSAPP_APIKEY=1234567 \
 #         ghcr.io/marczyn/parking-empty-alert:latest
@@ -177,7 +177,10 @@ EOF
 # MQTT broker config removed from yaml in HA 2024.1; use storage config entry instead
 RUN mkdir -p /etc/cont-init.d && \
     cat > /etc/cont-init.d/10-ha-config.sh <<'EOF'
-#!/bin/sh
+#!/command/with-contenv sh
+# with-contenv: s6 does NOT pass the container (docker -e) environment to cont-init.d
+# scripts by default — this shebang imports it, so the secret checks + substitutions
+# below actually see FRIGATE_RTSP_PASSWORD / WHATSAPP_* instead of seeing them unset.
 set -e
 # Required secrets must be supplied at runtime (-e ...). No insecure baked defaults:
 # fail fast with a clear message instead of silently running with placeholder creds.

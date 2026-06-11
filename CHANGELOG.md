@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] — 2026-06-12
+
+Security-hardening release: four adversarial review rounds (25 → 10 → 2 → 0 confirmed findings) plus supply-chain pinning and a documentation reconciliation.
 
 ### Security
 
@@ -26,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A CRLF `.env` no longer corrupts every value** — `setup.sh`'s reader strips a trailing `\r`; added `.gitattributes` (LF for text) and normalized `.env.example` to LF. ([`setup.sh`](scripts/setup.sh), [`.gitattributes`](.gitattributes))
 - **First-boot wizard (cloud-init path)** now pulls the image explicitly (with abort) and `finalize()` requires the **container to stay continuously Running across a settle window** before marking the appliance configured — `.State.Running` is true at s6 PID-1 start (before cont-init/services), so a single observation didn't prove it stayed up, and a crash seconds later (with `--rm`) could still lock in a broken appliance behind "Setup complete". ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
 - **Older release images stay pullable** — each per-arch child now carries an immutable `:<release>-amd64/-arm64` tag, so the untagged-version cleanup can no longer delete the platform children of an older `:v<release>` manifest list (which the OVA pins to). ([`docker-publish.yml`](.github/workflows/docker-publish.yml))
+- **All-in-one images now boot and read runtime secrets correctly** — s6 does not pass the container (`-e`) environment to `cont-init.d` scripts by default, so they now use the `#!/command/with-contenv sh` shebang. Without it the **full image failed to start** (its required-secret fail-fast saw the vars as unset) and its WhatsApp phone/apikey substitution silently baked in placeholder values; verified end-to-end by building and running both images (full boots + substitutes the real values; lite broker authenticates). ([`Dockerfile.aio-full`](Dockerfile.aio-full), [`Dockerfile.aio-lite`](Dockerfile.aio-lite))
 
 - **First-boot wizard no longer locks in a broken appliance** — a failed image pull / service start now aborts (and retries next boot) instead of printing "Setup complete" and writing the `configured` sentinel. ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
 - **No more false "Frigate recovered" alert on every HA restart** — the recovered watchdog fires only after a real >10-min outage (tracked via an `input_boolean`); both watchdogs also catch the `unknown` state. ([`automations.yaml`](config/homeassistant/automations.yaml), [`configuration.yaml`](config/homeassistant/configuration.yaml))
@@ -38,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **VM/OVA pins the app image** to the immutable `:v<version>` tag instead of mutable `:latest`, so each appliance runs exactly the validated image. ([`parking.pkr.hcl`](vm/parking.pkr.hcl))
 - **Dependabot** batches action/image bumps into grouped weekly PRs and routes major HA/Frigate jumps to manual review; removed the dead `VERSION_CLEAN` env var. ([`dependabot.yml`](.github/dependabot.yml), [`build-vm.yml`](.github/workflows/build-vm.yml))
 - **Package-cleanup jobs run on `ubuntu-latest`** (was the persistent self-hosted runner) — the API-only `delete-package-versions` step no longer executes on the build host. ([`cleanup-old-packages.yml`](.github/workflows/cleanup-old-packages.yml))
+- **Lite image MQTT broker is now authenticated and LAN-reachable** — the lite image has no in-container HA, so its broker must be reachable for your external HA; the round-1 localhost-only binding had silently broken that documented use case. The broker now requires auth (password generated at first start from `FRIGATE_MQTT_USER` / `FRIGATE_MQTT_PASSWORD`) and publishes 1883. The full image's broker stays in-container only. ([`Dockerfile.aio-lite`](Dockerfile.aio-lite))
+- **Documentation reconciled with the hardening** — `docker run` examples and the env table now use the image's actual `FRIGATE_*` variable names (the old non-prefixed names never reached the image and broke once fail-fast removed the placeholder defaults); the `changeme`/placeholder "defaults" are documented as **required**; the full image no longer publishes 1883; NAS guides corrected to Frigate port 8090. ([`README.md`](README.md), [`docs/QUICKSTART.md`](docs/QUICKSTART.md), [`docs/nas/`](docs/nas/))
 
 ---
 

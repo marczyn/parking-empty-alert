@@ -36,18 +36,19 @@ plus any generic ONVIF camera ([templates](examples/cameras/README.md)).
 docker run -d --name parking \
   -p 8090:8090 \
   -p 8123:8123 \
-  -p 1883:1883 \
-  -e CAMERA_IP=192.168.1.100 \
-  -e RTSP_USER=frigate \
-  -e RTSP_PASSWORD=yourpassword \
+  -e FRIGATE_CAMERA_IP=192.168.1.100 \
+  -e FRIGATE_RTSP_USER=frigate \
+  -e FRIGATE_RTSP_PASSWORD=yourpassword \
   -e WHATSAPP_PHONE=48501234567 \
   -e WHATSAPP_APIKEY=1234567 \
   ghcr.io/marczyn/parking-empty-alert:latest
 ```
 
+> The container **fails fast** if `FRIGATE_RTSP_PASSWORD`, `WHATSAPP_PHONE` or `WHATSAPP_APIKEY` is missing — there are no insecure baked-in defaults.
+
 Bundled in this single container:
 - ✅ **Frigate** (NVR + AI detection) — exposed on port **8090**
-- ✅ **Mosquitto** (MQTT broker) — exposed on port **1883**
+- ✅ **Mosquitto** (MQTT broker) — **in-container only**, not published (Frigate + HA reach it over localhost)
 - ✅ **Home Assistant** (automation + dashboard) — exposed on port **8123**
 
 After `docker run` (1-2 min boot), open in browser:
@@ -60,18 +61,20 @@ After `docker run` (1-2 min boot), open in browser:
 docker run -d --name parking-lite \
   -p 8090:8090 \
   -p 1883:1883 \
-  -e CAMERA_IP=192.168.1.100 \
-  -e RTSP_USER=frigate \
-  -e RTSP_PASSWORD=yourpassword \
+  -e FRIGATE_CAMERA_IP=192.168.1.100 \
+  -e FRIGATE_RTSP_USER=frigate \
+  -e FRIGATE_RTSP_PASSWORD=yourpassword \
+  -e FRIGATE_MQTT_USER=frigate \
+  -e FRIGATE_MQTT_PASSWORD=yourmqttpassword \
   ghcr.io/marczyn/parking-empty-alert-lite:latest
 ```
 
 Bundled:
 - ✅ **Frigate** — port **8090**
-- ✅ **Mosquitto** — port **1883**
+- ✅ **Mosquitto** — port **1883**, **authentication required** (broker password generated from `FRIGATE_MQTT_USER` / `FRIGATE_MQTT_PASSWORD`). Keep 1883 on a trusted LAN.
 
 After `docker run`, in your existing HA add:
-- MQTT integration → broker: `<host>`, port: `1883`
+- MQTT integration → broker: `<host>`, port: `1883`, **username `FRIGATE_MQTT_USER`, password `FRIGATE_MQTT_PASSWORD`** (the values you passed above)
 - Frigate integration → URL: `http://<host>:8090`
 
 ### Multi-arch
@@ -82,14 +85,16 @@ Both images: `amd64` (PC/NAS) + `arm64` (Raspberry Pi / Apple Silicon Mac).
 
 | Variable | Default | Used by |
 |---|---|---|
-| `CAMERA_IP` | `192.168.1.100` | Frigate RTSP URL |
-| `RTSP_USER` | `frigate` | Frigate RTSP auth |
-| `RTSP_PASSWORD` | `changeme` | Frigate RTSP auth |
-| `WHATSAPP_PHONE` | `48501234567` | HA notify (full image only) |
-| `WHATSAPP_APIKEY` | `1234567` | HA notify (full image only) |
-| `TZ` | `Europe/Warsaw` | Timezone |
+| `FRIGATE_CAMERA_IP` | `192.168.1.100` | Frigate RTSP URL (set your camera's real IP) |
+| `FRIGATE_RTSP_USER` | `frigate` | Frigate RTSP auth |
+| `FRIGATE_RTSP_PASSWORD` | **required** | Frigate RTSP auth (container fails fast if unset) |
+| `FRIGATE_MQTT_USER` | **required (lite)** | Broker auth your external HA uses (lite image only) |
+| `FRIGATE_MQTT_PASSWORD` | **required (lite)** | Broker auth your external HA uses (lite image only) |
+| `WHATSAPP_PHONE` | **required (full)** | HA notify (full image only; fails fast if unset) |
+| `WHATSAPP_APIKEY` | **required (full)** | HA notify (full image only; fails fast if unset) |
+| `TZ` | `UTC` | Timezone |
 
-Set with `-e VAR=value` flags in `docker run`, or via volumes/`.env` in compose / Container Manager UI.
+Required secrets have **no baked-in defaults** (a `changeme` default would silently run with a known-weak credential, and a baked secret persists in image layers). Set everything with `-e VAR=value` flags in `docker run`, or via `.env` / Container Manager UI.
 
 ### Manual steps after browser access
 

@@ -7,13 +7,13 @@ Deploy parking-empty-alert on QNAP NAS using **Container Station** (QTS 5.x).
 ### 🅰️ Simple — pull pre-built AIO image (recommended)
 
 1. Container Station → **Images** → **Pull**
-2. **Registry:** Other → URL: `ghcr.io/marczyn/parking-empty-alert:latest` (full) or `:latest-lite` for no-HA
+2. **Registry:** Other → URL: `ghcr.io/marczyn/parking-empty-alert:latest` (full) or `ghcr.io/marczyn/parking-empty-alert-lite:latest` (no-HA)
 3. **Images** → click pulled image → **Create**
-4. **Port mapping:** 5000:5000, 8123:8123, 1883:1883
-5. **Environment variables:** `CAMERA_IP`, `FRIGATE_RTSP_USER`, `FRIGATE_RTSP_PASSWORD`, `WHATSAPP_PHONE`, `WHATSAPP_APIKEY`
-6. **Run** — done.
+4. **Port mapping:** `8090:8090`, plus `8123:8123` (full only) **or** `1883:1883` (lite only — full keeps MQTT in-container)
+5. **Environment variables:** `FRIGATE_CAMERA_IP`, `FRIGATE_RTSP_USER`, `FRIGATE_RTSP_PASSWORD` (required); full → `WHATSAPP_PHONE` + `WHATSAPP_APIKEY` (required); lite → `FRIGATE_MQTT_USER` + `FRIGATE_MQTT_PASSWORD` (required, your external HA's broker login)
+6. **Run** — done (the container fails fast if a required secret is missing).
 
-Open `http://<qnap-ip>:5000` (Frigate) and `http://<qnap-ip>:8123` (HA).
+Open `http://<qnap-ip>:8090` (Frigate) and `http://<qnap-ip>:8123` (HA, full only).
 
 ### 🅱️ Advanced — git clone + Container Station Application (covered below)
 
