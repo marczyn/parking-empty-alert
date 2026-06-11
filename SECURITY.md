@@ -51,7 +51,7 @@ Include:
 
 - ✅ Set strong, unique passwords for the Reolink `frigate` user (don't reuse your admin password)
 - ✅ Use static IPs for the camera (prevents hijacking via DHCP poisoning)
-- ✅ Run on a trusted local network — **never expose ports 5000, 8123, 1883 to the internet directly**
+- ✅ Run on a trusted local network — **never expose ports 5000/8090 (Frigate), 8123 (Home Assistant), 1883 (MQTT) to the internet directly.** Note: the all-in-one images serve the Frigate UI on **8090 with authentication disabled**, so anyone who can reach that port gets unauthenticated access to the camera feeds — keep it LAN-only (and ideally behind a reverse proxy with auth)
 - ✅ Keep host OS and Docker daemon up to date
 - ✅ Set `chmod 600 .env` to prevent other host users from reading credentials
 - ✅ Use a dedicated Linux user for Docker (don't run as root in production)

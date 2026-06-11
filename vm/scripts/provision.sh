@@ -63,8 +63,21 @@ sudo apt-get autoremove -y
 sudo apt-get clean
 sudo rm -rf /var/lib/apt/lists/*
 
-# Remove packer build password — user will set their own via wizard
+# Remove the packer build password, then FORCE the user to set one on first login
+# (chage -d 0 expires it): otherwise the shipped image keeps a blank-password account
+# that, combined with the cloud-init NOPASSWD:ALL sudo grant, is instant local root.
 sudo passwd -d debian
+sudo chage -d 0 debian
+
+# Harden sshd for the SHIPPED image. The build-time cloud-init set
+# `ssh_pwauth: true` (-> PasswordAuthentication yes in 50-cloud-init.conf) which is
+# never otherwise reverted. Disable password auth entirely and never permit an empty
+# password, so the blank build account can't be reached over SSH (key auth only).
+sudo tee /etc/ssh/sshd_config.d/99-parking-hardening.conf >/dev/null <<'EOF'
+PasswordAuthentication no
+PermitEmptyPasswords no
+EOF
+sudo chmod 644 /etc/ssh/sshd_config.d/99-parking-hardening.conf
 
 # Remove host SSH keys — regenerated on first boot
 sudo rm -f /etc/ssh/ssh_host_*

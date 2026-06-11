@@ -7,6 +7,22 @@
 #   - If detected plate == owner_plate → suppress "spot free" alert
 #   - If detected plate ∈ blacklist_plates → URGENT alert (no 2-min delay)
 #   - Otherwise → standard "spot free" alert after 2 min
+#
+# ── REQUIRED PREREQUISITE ─────────────────────────────────────────────────────
+# These automations read `sensor.parking_last_plate`. The Frigate HA integration
+# does NOT create it automatically — recognized plate text arrives as event/genai
+# metadata, not as an entity. You MUST define the sensor yourself, e.g. an MQTT
+# sensor in config/homeassistant/configuration.yaml that extracts the plate from
+# your Frigate LPR/genai topic, for example:
+#
+#   mqtt:
+#     sensor:
+#       - name: "parking_last_plate"
+#         state_topic: "frigate/parking/license_plate"   # <- your topic
+#         value_template: "{{ value_json.plate | default('unknown') }}"
+#
+# Without it, states('sensor.parking_last_plate') is 'unknown', so owner-suppression
+# never matches and these LPR features silently no-op.
 ###############################################################################
 
 ###############################################################################
@@ -44,10 +60,13 @@
           Time: {{ now().strftime('%H:%M') }}
 
 ###############################################################################
-# AUTOMATION: 🚨 URGENT — blacklist plate detected on spot exit
+# AUTOMATION: 🚨 URGENT — blacklist plate DETECTED
+# NB: this fires whenever a blacklisted plate is recognized (arrival OR exit), not
+# only on spot exit — the trigger is any change of sensor.parking_last_plate with no
+# correlation to the spot emptying. Labelled "detected" to match that behaviour.
 ###############################################################################
 - id: parking_blacklist_alert
-  alias: "🚨 BLACKLIST plate detected leaving"
+  alias: "🚨 BLACKLIST plate detected"
   mode: single
   trigger:
     - platform: state
@@ -90,36 +109,10 @@
         entity_id: sensor.parking_parking_spot_car
 
 ###############################################################################
-# WATCHDOG: Frigate offline detection (kept from base)
+# NOTE: the Frigate offline/recovered WATCHDOG automations are intentionally NOT
+# repeated here. They already live in config/homeassistant/automations.yaml
+# (ids: frigate_offline_watchdog, frigate_recovered_watchdog). The LPR README's
+# install step APPENDS this file onto the base automations.yaml, so re-defining
+# them here would produce duplicate automation ids and Home Assistant would refuse
+# to load the whole automations config ("Two automations have the same ID").
 ###############################################################################
-- id: frigate_offline_watchdog
-  alias: "⚠️ Frigate offline watchdog"
-  mode: single
-  trigger:
-    - platform: state
-      entity_id: binary_sensor.parking_motion
-      to: "unavailable"
-      for:
-        minutes: 10
-  action:
-    - service: notify.whatsapp_parking
-      data:
-        message: >
-          ⚠️ Frigate offline >10 min! AI detection stopped.
-          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}
-
-- id: frigate_recovered_watchdog
-  alias: "✅ Frigate recovered"
-  mode: single
-  trigger:
-    - platform: state
-      entity_id: binary_sensor.parking_motion
-      from: "unavailable"
-      for:
-        minutes: 1
-  action:
-    - service: notify.whatsapp_parking
-      data:
-        message: >
-          ✅ Frigate back online.
-          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}

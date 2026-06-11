@@ -135,7 +135,10 @@ services:
     # network_mode: host works on Linux. macOS/Windows: use override file
     # `docker compose -f docker-compose.yml -f docker-compose.macwin.yml up -d`
     network_mode: host
-    privileged: true
+    # NOTE: privileged is intentionally NOT set — this stack passes no USB/serial/
+    # Bluetooth/Zigbee device through to Home Assistant, so privileged would only add
+    # blast radius (a compromise of HA would become full host root). If you add a
+    # hardware integration, prefer specific `devices:` / `cap_add:` entries instead.
     # Resource limits — HA uses ~500MB-1GB typically; bump for many integrations
     mem_limit: 1500m
     mem_reservation: 256m

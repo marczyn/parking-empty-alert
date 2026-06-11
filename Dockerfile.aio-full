@@ -48,9 +48,12 @@ RUN python3 -m venv /opt/ha && \
 # causing AttributeError that HA's forwarded.py catches only as ImportError — all HTTP 500.
 RUN /opt/ha/bin/pip uninstall -y hass-nabucasa
 
-# Mosquitto config
+# Mosquitto config — bind the broker to LOCALHOST ONLY. Frigate and Home Assistant
+# inside this all-in-one container connect over localhost, so the broker never needs
+# to be reachable from the host network. Binding to 127.0.0.1 means a stray
+# `-p 1883:1883` cannot expose an anonymous broker to the LAN (safe-by-default).
 RUN cat > /etc/mosquitto/mosquitto.conf <<'EOF'
-listener 1883
+listener 1883 127.0.0.1
 allow_anonymous true
 persistence true
 persistence_location /mosquitto/data/
@@ -189,7 +192,9 @@ ENV FRIGATE_RTSP_PASSWORD=changeme
 ENV WHATSAPP_PHONE=48501234567
 ENV WHATSAPP_APIKEY=1234567
 
-EXPOSE 8090 8123 1883 8554 8555
+# 1883 (MQTT) is intentionally NOT exposed — the broker is localhost-only and
+# used only by the in-container Frigate + Home Assistant.
+EXPOSE 8090 8123 8554 8555
 
 LABEL org.opencontainers.image.title="parking-empty-alert"
 LABEL org.opencontainers.image.description="All-in-one: Frigate + Mosquitto + Home Assistant. Just docker run + env vars."
