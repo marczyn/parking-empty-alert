@@ -25,9 +25,11 @@ RUN apt-get update && \
 RUN sed -i 's/listen 5000;/listen 8090;/g; s/listen \[::\]:5000;/listen [::]:8090;/g' \
     /usr/local/nginx/templates/listen.gotmpl
 
-# Mosquitto config
+# Mosquitto config — bind the broker to LOCALHOST ONLY (the in-container Frigate +
+# Home Assistant connect over localhost), so a stray `-p 1883:1883` cannot expose an
+# anonymous broker to the LAN (safe-by-default).
 RUN cat > /etc/mosquitto/mosquitto.conf <<'EOF'
-listener 1883
+listener 1883 127.0.0.1
 allow_anonymous true
 persistence true
 persistence_location /mosquitto/data/
@@ -103,7 +105,8 @@ ENV FRIGATE_CAMERA_IP=192.168.1.100
 ENV FRIGATE_RTSP_USER=frigate
 ENV FRIGATE_RTSP_PASSWORD=changeme
 
-EXPOSE 8090 1883 8554 8555
+# 1883 (MQTT) is intentionally NOT exposed — the broker is localhost-only.
+EXPOSE 8090 8554 8555
 
 LABEL org.opencontainers.image.title="parking-empty-alert-lite"
 LABEL org.opencontainers.image.description="All-in-one: Frigate + Mosquitto. Just docker run + env vars."

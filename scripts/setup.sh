@@ -504,6 +504,7 @@ if [ "$ONBOARDED" = "404" ] || [ "$ONBOARDED" = "200" ]; then
         -d "{\"client_id\":\"$HA_URL/\",\"redirect_uri\":\"$HA_URL/?auth_callback=1\"}" > /dev/null 2>&1 || true
 
       echo "✓ HA admin account created"
+      HA_ACCOUNT_CREATED=yes   # the generated password was actually applied this run
 
       # Add Frigate integration
       echo "Adding Frigate integration ($FRIGATE_URL)..."
@@ -538,10 +539,18 @@ echo
 echo "  Frigate UI:        http://localhost:5000"
 if [ "${USE_EXISTING_HA:-no}" != "yes" ]; then
   echo "  Home Assistant:    http://localhost:8123"
-  if [ -n "${HA_ADMIN_PASS:-}" ]; then
+  # Only print + persist the generated password if the account was ACTUALLY created
+  # this run. On a re-run against an already-onboarded HA the password is regenerated
+  # but never applied, so printing it would show a credential that does not work and
+  # appending it would pile duplicate HA_ADMIN_PASSWORD lines into .env on every run.
+  if [ "${HA_ACCOUNT_CREATED:-no}" = "yes" ] && [ -n "${HA_ADMIN_PASS:-}" ]; then
     echo "    Username:        $HA_ADMIN_USER"
     echo "    Password:        $HA_ADMIN_PASS"
     echo "    ⚠ SAVE THIS PASSWORD — also written to .env (HA_ADMIN_PASSWORD)"
+    # Replace any prior HA_ADMIN_* lines so re-runs never accumulate duplicates.
+    if [ -f .env ]; then
+      grep -v '^HA_ADMIN_USER=' .env | grep -v '^HA_ADMIN_PASSWORD=' > .env.tmp && mv .env.tmp .env
+    fi
     echo "HA_ADMIN_USER=$HA_ADMIN_USER" >> .env
     echo "HA_ADMIN_PASSWORD=$HA_ADMIN_PASS" >> .env
   fi

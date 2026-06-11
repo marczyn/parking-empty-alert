@@ -47,7 +47,7 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          V="${{ env.VERSION }}"
+          V="$VERSION"   # consume the env var in-shell, never ${{ }} template-expand untrusted input
           # Strip leading 'v' if present
           V="${V#v}"
           echo "version=${V}" >> "$GITHUB_OUTPUT"
@@ -60,9 +60,9 @@ jobs:
           restore-keys: debian-12-genericcloud-amd64-
 
       - name: Install Packer
-        uses: hashicorp/setup-packer@main
+        uses: hashicorp/setup-packer@v3   # release line, not the moving 'main' branch
         with:
-          version: latest
+          version: "1.11.2"               # pin Packer (was 'latest')
 
       - name: Install QEMU and deps
         run: |
@@ -103,7 +103,7 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          V="${{ env.VERSION }}"
+          V="$VERSION"   # consume the env var in-shell, never ${{ }} template-expand untrusted input
           V="${V#v}"
           echo "version=${V}" >> "$GITHUB_OUTPUT"
 
@@ -115,9 +115,9 @@ jobs:
           restore-keys: debian-12-genericcloud-amd64-
 
       - name: Install Packer
-        uses: hashicorp/setup-packer@main
+        uses: hashicorp/setup-packer@v3   # release line, not the moving 'main' branch
         with:
-          version: latest
+          version: "1.11.2"               # pin Packer (was 'latest')
 
       - name: Install QEMU and deps
         run: |
@@ -157,7 +157,7 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          V="${{ env.VERSION }}"
+          V="$VERSION"   # consume the env var in-shell, never ${{ }} template-expand untrusted input
           V="${V#v}"
           echo "version=${V}" >> "$GITHUB_OUTPUT"
 
@@ -173,10 +173,15 @@ jobs:
 
       - name: Upload OVAs to release
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" \
-            output/ova/parking-empty-alert-full-${{ steps.version.outputs.version }}.ova \
-            output/ova/parking-empty-alert-lite-${{ steps.version.outputs.version }}.ova \
+          gh release upload "$RELEASE_TAG" \
+            "output/ova/parking-empty-alert-full-${VER}.ova" \
+            "output/ova/parking-empty-alert-lite-${VER}.ova" \
             --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          # Pass event-derived values via env (consumed as "$RELEASE_TAG"/"$VER")
+          # rather than ${{ }} template-expanding them into the shell — a tag name can
+          # carry shell metacharacters (command-injection sink).
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          VER: ${{ steps.version.outputs.version }}
