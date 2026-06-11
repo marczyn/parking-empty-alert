@@ -43,9 +43,13 @@ jobs:
           file: Dockerfile.aio-full
           platforms: linux/amd64
           push: true
-          # Tag keeps blob alive in ghcr.io (auto-deletes untagged versions).
-          # Merge uses digest from outputs — tag may be overwritten later.
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:amd64
+          # Two tags per child: a MOVING :amd64 (for the current build) and an IMMUTABLE
+          # :<release>-amd64. The immutable per-release tag keeps this platform child
+          # alive forever, so the older :v<release> manifest list (and the OVA pinned to
+          # it) stays pullable even after the untagged-version cleanup runs.
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:amd64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:${{ env.TAG }}-amd64
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-full-amd64
@@ -73,7 +77,9 @@ jobs:
           file: Dockerfile.aio-full
           platforms: linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:arm64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:${{ env.TAG }}-arm64
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-full-arm64
@@ -121,7 +127,9 @@ jobs:
           file: Dockerfile.aio-lite
           platforms: linux/amd64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:amd64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:${{ env.TAG }}-amd64
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-lite-amd64
@@ -149,7 +157,9 @@ jobs:
           file: Dockerfile.aio-lite
           platforms: linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:arm64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:arm64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:${{ env.TAG }}-arm64
           provenance: false
           sbom: false
           cache-from: type=gha,scope=aio-lite-arm64

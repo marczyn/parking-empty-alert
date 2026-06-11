@@ -139,6 +139,9 @@ cameras:
           - car
           - truck
           - motorcycle
+          - bus              # keep in sync with objects.track — else a 'bus'
+                             # (large vans/SUVs are often COCO-classified as bus)
+                             # is tracked but never counts as occupying the spot
 
     snapshots:
       enabled: true

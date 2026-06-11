@@ -23,6 +23,7 @@ load_env() {
   [ -f .env ] || return 0
   local key val
   while IFS='=' read -r key val || [ -n "$key" ]; do
+    key="${key%$'\r'}"; val="${val%$'\r'}"          # tolerate CRLF (.env edited on Windows)
     case "$key" in ''|\#*) continue ;; esac        # skip blanks + comments
     # strip a single pair of surrounding single or double quotes (how we write .env)
     case "$val" in
@@ -83,6 +84,7 @@ fi
 if [ -f .env ]; then
   PLACEHOLDER_FOUND=0
   while IFS='=' read -r KEY VAL; do
+    VAL="${VAL%$'\r'}"                              # tolerate CRLF (.env edited on Windows)
     case "$KEY" in
       RTSP_PASSWORD)
         case "$VAL" in

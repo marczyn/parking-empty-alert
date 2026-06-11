@@ -16,9 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AIO images** — removed baked secret `ENV` defaults (`changeme` / placeholder apikey) in favor of fail-fast on missing runtime secrets; added HA login brute-force protection (`ip_ban_enabled`, `login_attempts_threshold`); escaped `sed` substitution of WhatsApp values. Frigate auth stays disabled by design (trusted-LAN appliance) with explicit warnings. ([`Dockerfile.aio-full`](Dockerfile.aio-full), [`Dockerfile.aio-lite`](Dockerfile.aio-lite))
 - **First-boot VM wizard** — replaced `eval` assignment (quote-breakout) with `printf -v`; the secrets file is created mode `0600`; the API key is masked in the summary. ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
 - **`restore.sh`** — rejects absolute / `..` traversal members before extracting a (possibly off-host) backup archive. ([`restore.sh`](scripts/restore.sh))
-- **Pre-commit secret scanner** — now inspects the staged blob and requires every secret field to still equal its template (was an easily-bypassed any-one-placeholder check). ([`install-git-hooks.sh`](scripts/install-git-hooks.sh))
+- **Pre-commit secret scanner** — now inspects the staged blob and requires every secret field to still equal its template (was an easily-bypassed any-one-placeholder check); the cross-file APIKEY/phone leak filters now **anchor** the placeholder exclusion, so a real key/phone that merely contains the placeholder digits (e.g. `91234567`, `448501234567`) is flagged instead of silently dropped. ([`install-git-hooks.sh`](scripts/install-git-hooks.sh))
 
 ### Fixed
+
+- **Home Assistant could not reach the MQTT broker on the recommended Linux deployment** — HA runs `network_mode: host`, which cannot resolve the Docker service name `mosquitto`, so the whole alert pipeline was silently dead. The broker host is now an env var (`MQTT_BROKER`, default `127.0.0.1` = the loopback-published broker); the Docker Desktop override uses `host.docker.internal`. ([`configuration.yaml`](config/homeassistant/configuration.yaml), [`docker-compose.macwin.yml`](docker-compose.macwin.yml))
+- **"Frigate recovered" alert could never fire on an active scene** — combining `from/to` with `for: 1 min` on the constantly-churning motion sensor meant the timer was always cancelled, so the alert was dropped and the outage flag stuck `on`. Removed the `for:` (fires the instant the sensor returns to a real state); the flag also resets on HA start (`initial: off`) so it can't carry over a restart. ([`automations.yaml`](config/homeassistant/automations.yaml), [`configuration.yaml`](config/homeassistant/configuration.yaml))
+- **LPR example** `parking_spot` zone now counts `bus` (matched the base-config fix). ([`frigate.lpr.yml`](examples/lpr/frigate.lpr.yml))
+- **A CRLF `.env` no longer corrupts every value** — `setup.sh`'s reader strips a trailing `\r`; added `.gitattributes` (LF for text) and normalized `.env.example` to LF. ([`setup.sh`](scripts/setup.sh), [`.gitattributes`](.gitattributes))
+- **First-boot wizard (cloud-init path)** now pulls the image explicitly (with abort) and `finalize()` waits for the **container** to actually be running — not just the systemd unit, which can report "active" while `docker run` is still pulling — before marking the appliance configured. ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
+- **Older release images stay pullable** — each per-arch child now carries an immutable `:<release>-amd64/-arm64` tag, so the untagged-version cleanup can no longer delete the platform children of an older `:v<release>` manifest list (which the OVA pins to). ([`docker-publish.yml`](.github/workflows/docker-publish.yml))
 
 - **First-boot wizard no longer locks in a broken appliance** — a failed image pull / service start now aborts (and retries next boot) instead of printing "Setup complete" and writing the `configured` sentinel. ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
 - **No more false "Frigate recovered" alert on every HA restart** — the recovered watchdog fires only after a real >10-min outage (tracked via an `input_boolean`); both watchdogs also catch the `unknown` state. ([`automations.yaml`](config/homeassistant/automations.yaml), [`configuration.yaml`](config/homeassistant/configuration.yaml))
@@ -30,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **VM/OVA pins the app image** to the immutable `:v<version>` tag instead of mutable `:latest`, so each appliance runs exactly the validated image. ([`parking.pkr.hcl`](vm/parking.pkr.hcl))
 - **Dependabot** batches action/image bumps into grouped weekly PRs and routes major HA/Frigate jumps to manual review; removed the dead `VERSION_CLEAN` env var. ([`dependabot.yml`](.github/dependabot.yml), [`build-vm.yml`](.github/workflows/build-vm.yml))
+- **Package-cleanup jobs run on `ubuntu-latest`** (was the persistent self-hosted runner) — the API-only `delete-package-versions` step no longer executes on the build host. ([`cleanup-old-packages.yml`](.github/workflows/cleanup-old-packages.yml))
 
 ---
 

@@ -53,7 +53,10 @@ fi
 
 # Block CallMeBot APIKEY look-alikes (6-9 digit numbers near 'apikey' string).
 # CallMeBot APIKEY range is 6-9 digits depending on registration era.
-LEAKS=$(git diff --cached -U0 | grep -E '^\+.*apikey.*[0-9]{6,9}' | grep -vE '1234567|123456789' || true)
+# Exclusion is ANCHORED to the exact placeholder value (with optional quotes and a
+# non-digit/end boundary) so a real key that merely CONTAINS 1234567 (e.g. 91234567,
+# 12345670) is still flagged, not dropped as a substring match.
+LEAKS=$(git diff --cached -U0 | grep -E '^\+.*apikey.*[0-9]{6,9}' | grep -vE 'apikey[^0-9]*"?(1234567|123456789)"?([^0-9]|$)' || true)
 if [ -n "$LEAKS" ]; then
   echo "❌ Possible CallMeBot APIKEY leak in staged changes:"
   echo "$LEAKS"
@@ -61,7 +64,7 @@ if [ -n "$LEAKS" ]; then
 fi
 
 # Block phone number look-alikes
-LEAKS=$(git diff --cached -U0 | grep -E '^\+.*whatsapp_phone:.*"[1-9][0-9]{10,14}"' | grep -vE '48501234567' || true)
+LEAKS=$(git diff --cached -U0 | grep -E '^\+.*whatsapp_phone:.*"[1-9][0-9]{10,14}"' | grep -vE 'whatsapp_phone:[^0-9]*"?48501234567"?([^0-9]|$)' || true)
 if [ -n "$LEAKS" ]; then
   echo "❌ Possible WhatsApp phone leak in staged changes:"
   echo "$LEAKS"
