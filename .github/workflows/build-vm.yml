@@ -42,7 +42,7 @@ jobs:
     needs: check-runner
     runs-on: [self-hosted, linux, x64, parking]
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Resolve version
         id: version
@@ -57,14 +57,14 @@ jobs:
           echo "version=${V}" >> "$GITHUB_OUTPUT"
 
       - name: Cache Debian cloud image
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.packer-cache
           key: debian-12-genericcloud-amd64-latest
           restore-keys: debian-12-genericcloud-amd64-
 
       - name: Install Packer
-        uses: hashicorp/setup-packer@1aa358be5cf73883762b302a3a03abd66e75b232 # v3 (release line, pinned to SHA)
+        uses: hashicorp/setup-packer@3286471d6cc6756d056a0b199fea5e0becdbc189 # v3 (release line, pinned to SHA)
         with:
           version: "1.11.2"               # pin Packer (was 'latest')
 
@@ -94,7 +94,7 @@ jobs:
             vm/parking.pkr.hcl
 
       - name: Upload full OVA as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ova-full
           path: output/ova/parking-empty-alert-full-${{ steps.version.outputs.version }}.ova
@@ -105,7 +105,7 @@ jobs:
     needs: check-runner
     runs-on: [self-hosted, linux, x64, parking]
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Resolve version
         id: version
@@ -118,14 +118,14 @@ jobs:
           echo "version=${V}" >> "$GITHUB_OUTPUT"
 
       - name: Cache Debian cloud image
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.packer-cache
           key: debian-12-genericcloud-amd64-latest
           restore-keys: debian-12-genericcloud-amd64-
 
       - name: Install Packer
-        uses: hashicorp/setup-packer@1aa358be5cf73883762b302a3a03abd66e75b232 # v3 (release line, pinned to SHA)
+        uses: hashicorp/setup-packer@3286471d6cc6756d056a0b199fea5e0becdbc189 # v3 (release line, pinned to SHA)
         with:
           version: "1.11.2"               # pin Packer (was 'latest')
 
@@ -155,7 +155,7 @@ jobs:
             vm/parking.pkr.hcl
 
       - name: Upload lite OVA as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ova-lite
           path: output/ova/parking-empty-alert-lite-${{ steps.version.outputs.version }}.ova
@@ -177,12 +177,12 @@ jobs:
           esac
           echo "version=${V}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ova-full
           path: output/ova
 
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ova-lite
           path: output/ova
