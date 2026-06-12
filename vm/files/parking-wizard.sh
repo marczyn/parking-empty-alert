@@ -92,14 +92,27 @@ finalize() {
     return 1
 }
 
+# The application image is BAKED INTO the appliance at build time, so first boot runs
+# fully offline. Only contact the registry if the image is somehow absent locally (e.g.
+# a manual wipe). A registry failure is fatal ONLY when there is no local image to fall
+# back on — a self-contained appliance is never stranded by a transient network hiccup.
+ensure_image() {
+    if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+        printf "${GREEN}Image present locally (baked into appliance) — no download needed.${RESET}\n"
+        return 0
+    fi
+    printf "${YELLOW}Image not found locally — pulling %s...${RESET}\n" "$IMAGE_NAME"
+    docker pull "$IMAGE_NAME"
+}
+
 # ── Check for pre-populated env file (cloud-init / automated deploy) ──────────
 if [ -f "$ENV_FILE" ]; then
     echo ""
     printf "${GREEN}[parking]${RESET} Configuration found at %s — skipping wizard.\n" "$ENV_FILE"
-    # Pull explicitly (with abort) like the interactive path — don't rely on the
-    # service's inline pull, so a failed pull retries next boot instead of locking in.
-    if ! docker pull "$IMAGE_NAME"; then
-        printf "${RED}ERROR: Docker image pull failed — check network/registry, then reboot to retry.${RESET}\n"
+    # Use the baked-in image (offline). Only the absent-AND-pull-failed case aborts so the
+    # wizard retries next boot instead of locking in a broken appliance.
+    if ! ensure_image; then
+        printf "${RED}ERROR: image missing and pull failed — check network/registry, then reboot to retry.${RESET}\n"
         exit 1
     fi
     finalize || exit 1
@@ -191,12 +204,12 @@ fi
 
 chmod 600 "$ENV_FILE"
 
-# ── Pull Docker image ──────────────────────────────────────────────────────────
-printf "${BOLD}Pulling Docker image (first run — may take several minutes)...${RESET}\n\n"
-# Check the pull result explicitly — do NOT swallow failures (no network at first boot,
-# registry outage, rate-limit). A failed pull must abort so the wizard retries next boot.
-if ! docker pull "$IMAGE_NAME"; then
-    printf "\n${RED}ERROR: Docker image pull failed — check network/registry, then reboot to retry.${RESET}\n"
+# ── Prepare Docker image ─────────────────────────────────────────────────────
+printf "${BOLD}Preparing Docker image...${RESET}\n\n"
+# The image is baked into the appliance — this is offline + instant. Falls back to a pull
+# only if it is somehow missing; aborts (retry next boot) only if that fallback also fails.
+if ! ensure_image; then
+    printf "\n${RED}ERROR: image missing and pull failed — check network/registry, then reboot to retry.${RESET}\n"
     exit 1
 fi
 
