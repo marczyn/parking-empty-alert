@@ -6,36 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.1.0] — 2026-06-12
-
-Security-hardening release (4 review rounds) + supply-chain pinning + docs sync.
-
-### Security
-- CI: self-hosted jobs gated to push/same-repo PR (fork-PR RCE).
-- Mosquitto host port bound to `127.0.0.1`.
-- `setup.sh`: stop `source .env` (command injection); quote values; `.env` `0600`.
-- `build-vm`: version via env var + allowlist-validated (injection).
-- AIO images: no baked secret defaults (fail-fast); HA login `ip_ban`; `sed` escaped.
-- Wizard: `printf -v` not `eval`; secrets file `0600`; API key masked.
-- `restore.sh`: reject absolute/`..`/symlink tar members.
-- Pre-commit hook: scan staged blob, per-field template assertion, anchored leak filters.
-- All images pinned `@sha256`; all Actions pinned to commit SHAs.
-
-### Fixed
-- AIO cont-init uses `#!/command/with-contenv sh` — without it the full image failed to boot and used placeholder WhatsApp creds.
-- HA couldn't reach MQTT on host-net Linux → broker host via `MQTT_BROKER` (default `127.0.0.1`).
-- Recovered watchdog no longer mis-fires (dropped `for:`; flag `initial: off`); watchdogs catch `unknown`.
-- Lovelace: no "OCCUPIED" when sensor unavailable/unknown.
-- `frigate.yml` + LPR example: `bus` counts as occupying the spot.
-- Wizard (cloud-init): explicit pull + sustained-liveness gate before sentinel.
-- CRLF `.env` no longer corrupts values (`load_env` strips CR; `.gitattributes`).
-- Package cleanup runs only after a successful build; keep default `2`.
-
-### Changed
-- Lite broker: authenticated + published `1883` (`FRIGATE_MQTT_USER/PASSWORD`); full stays in-container.
-- VM/OVA pins app image to `:v<version>`.
-- docker-publish tags per-arch children `:<release>-amd64/-arm64` (cleanup-safe).
-- Package-cleanup on `ubuntu-latest`; dependabot grouped; removed dead `VERSION_CLEAN`.
-- Docs: `docker run` uses real `FRIGATE_*` names; secrets required; Frigate UI `8090`.
+- Security hardening (4 review rounds)
+- Supply-chain pinning (images @sha256, Actions @SHA)
+- Lite broker auth + AIO image fixes
+- Docs + version sync
 
 ---
 
