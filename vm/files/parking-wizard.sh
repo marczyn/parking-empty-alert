@@ -150,6 +150,30 @@ done
 ask "RTSP username" RTSP_USER "frigate"
 ask "RTSP password" RTSP_PASSWORD "" "yes"
 
+# ── Camera brand → RTSP stream path ────────────────────────────────────────────
+# The RTSP URL path differs per manufacturer, so the appliance works with ANY camera,
+# not only Reolink. Picking a brand sets the detect (sub / low-res) and record (main /
+# high-res) stream paths; "Other" lets you type them. Port 554 is assumed (standard).
+printf "\n${BOLD}Camera brand${RESET} (sets the RTSP stream path)\n"
+printf "  1) Reolink        ${CYAN}(default)${RESET}\n"
+printf "  2) Hikvision\n"
+printf "  3) Dahua / Amcrest\n"
+printf "  4) TP-Link Tapo\n"
+printf "  5) Other / custom path\n"
+read -r -p "Choose [1-5, default 1]: " BRAND
+BRAND="${BRAND:-1}"
+case "$BRAND" in
+    2) RTSP_PATH_MAIN="/Streaming/Channels/101"; RTSP_PATH_SUB="/Streaming/Channels/102" ;;
+    3) RTSP_PATH_MAIN="/cam/realmonitor?channel=1&subtype=0"; RTSP_PATH_SUB="/cam/realmonitor?channel=1&subtype=1" ;;
+    4) RTSP_PATH_MAIN="/stream1"; RTSP_PATH_SUB="/stream2" ;;
+    5)
+        printf "  ${YELLOW}Enter the stream path AFTER host:554, including the leading '/'.${RESET}\n"
+        ask "Main (record, high-res) path, e.g. /live/main" RTSP_PATH_MAIN
+        ask "Sub (detect, low-res) path, e.g. /live/sub"    RTSP_PATH_SUB "$RTSP_PATH_MAIN"
+        ;;
+    *) RTSP_PATH_MAIN="/h264Preview_01_main"; RTSP_PATH_SUB="/h264Preview_01_sub" ;;
+esac
+
 # ── Notifications ──────────────────────────────────────────────────────────────
 printf "\n${BOLD}WhatsApp notifications (CallMeBot)${RESET}\n"
 printf "  Get your API key: send ${CYAN}I allow callmebot to send me messages${RESET}\n"
@@ -170,6 +194,7 @@ printf "${BOLD}Summary${RESET}\n\n"
 printf "  Camera IP  : %s\n" "$CAMERA_IP"
 printf "  RTSP user  : %s\n" "$RTSP_USER"
 printf "  RTSP pass  : %s\n" "$(echo "$RTSP_PASSWORD" | sed 's/./*/g')"
+printf "  RTSP path  : %s (detect) / %s (record)\n" "$RTSP_PATH_SUB" "$RTSP_PATH_MAIN"
 if [ "$VARIANT" = "full" ]; then
     printf "  WhatsApp   : +%s\n" "$WHATSAPP_PHONE"
     printf "  API key    : %s\n" "$(echo "$WHATSAPP_APIKEY" | sed 's/./*/g')"
@@ -193,6 +218,8 @@ cat >> "$ENV_FILE" <<EOF
 FRIGATE_CAMERA_IP=${CAMERA_IP}
 FRIGATE_RTSP_USER=${RTSP_USER}
 FRIGATE_RTSP_PASSWORD=${RTSP_PASSWORD}
+FRIGATE_RTSP_PATH_MAIN=${RTSP_PATH_MAIN}
+FRIGATE_RTSP_PATH_SUB=${RTSP_PATH_SUB}
 EOF
 
 if [ "$VARIANT" = "full" ]; then

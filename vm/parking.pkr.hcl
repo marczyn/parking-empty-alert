@@ -30,7 +30,7 @@ variable "version" {
 # known-good, already-published image instead of a tag that may not exist yet.
 variable "app_version" {
   type    = string
-  default = "1.1.0"
+  default = "1.2.0"
 }
 
 variable "disk_size" {
