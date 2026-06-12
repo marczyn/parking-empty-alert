@@ -1,0 +1,184 @@
+name: Build and push all-in-one Docker images
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag for both images'
+        required: true
+        default: 'latest'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+  TAG: ${{ github.event.inputs.tag || github.event.release.tag_name || 'latest' }}
+
+jobs:
+
+  # ── Full image ────────────────────────────────────────────────
+  build-full-amd64:
+    name: Full — amd64
+    runs-on: [self-hosted, linux, x64, parking]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push amd64
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile.aio-full
+          platforms: linux/amd64
+          push: true
+          # Two tags per child: a MOVING :amd64 (for the current build) and an IMMUTABLE
+          # :<release>-amd64. The immutable per-release tag keeps this platform child
+          # alive forever, so the older :v<release> manifest list (and the OVA pinned to
+          # it) stays pullable even after the untagged-version cleanup runs.
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:amd64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:${{ env.TAG }}-amd64
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=aio-full-amd64
+          cache-to: type=gha,scope=aio-full-amd64,mode=max
+
+  build-full-arm64:
+    name: Full — arm64
+    runs-on: [self-hosted, linux, x64, parking]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push arm64
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile.aio-full
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:arm64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:${{ env.TAG }}-arm64
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=aio-full-arm64
+          cache-to: type=gha,scope=aio-full-arm64,mode=max
+
+  merge-full:
+    name: Full — merge manifest
+    needs: [build-full-amd64, build-full-arm64]
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create and push manifest list
+        # Reference by digest (from job outputs) so manifest list is correct
+        # even if the intermediate :amd64/:arm64 tags are later overwritten.
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:latest \
+            --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert:${{ env.TAG }} \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert@${{ needs.build-full-amd64.outputs.digest }} \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert@${{ needs.build-full-arm64.outputs.digest }}
+
+  # ── Lite image ────────────────────────────────────────────────
+  build-lite-amd64:
+    name: Lite — amd64
+    runs-on: [self-hosted, linux, x64, parking]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push amd64
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile.aio-lite
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:amd64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:${{ env.TAG }}-amd64
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=aio-lite-amd64
+          cache-to: type=gha,scope=aio-lite-amd64,mode=max
+
+  build-lite-arm64:
+    name: Lite — arm64
+    runs-on: [self-hosted, linux, x64, parking]
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push arm64
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile.aio-lite
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:arm64
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:${{ env.TAG }}-arm64
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=aio-lite-arm64
+          cache-to: type=gha,scope=aio-lite-arm64,mode=max
+
+  merge-lite:
+    name: Lite — merge manifest
+    needs: [build-lite-amd64, build-lite-arm64]
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create and push manifest list
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:latest \
+            --tag ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite:${{ env.TAG }} \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite@${{ needs.build-lite-amd64.outputs.digest }} \
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/parking-empty-alert-lite@${{ needs.build-lite-arm64.outputs.digest }}

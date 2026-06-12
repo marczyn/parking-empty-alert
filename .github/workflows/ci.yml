@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least-privilege GITHUB_TOKEN — only what CI needs
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate:
+    name: Validate configs
+    # SECURITY: the self-hosted 'parking' runner is persistent (not ephemeral) and also
+    # builds OVAs / pushes images. NEVER run untrusted fork-PR code on it. This guard
+    # runs CI only for pushes and for same-repo PRs (trusted); PRs opened from a fork
+    # are skipped here and must be validated by a maintainer out-of-band.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify yamllint available (pre-installed on self-hosted runner)
+        run: yamllint --version
+
+      - name: Lint YAML formatting (warnings only)
+        run: |
+          yamllint -d "{extends: default, rules: {line-length: disable, indentation: {indent-sequences: consistent}, document-start: disable, comments: {min-spaces-from-content: 1}, truthy: {check-keys: false}, braces: disable, brackets: disable}}" \
+            docker-compose.yml \
+            docker-compose.macwin.yml \
+            config/frigate.yml \
+            config/homeassistant/*.yaml \
+            examples/multi-camera/*.yml \
+            examples/multi-camera/*.yaml \
+            examples/multi-spot-single-camera/*.yml \
+            examples/multi-spot-single-camera/*.yaml \
+            examples/lpr/*.yml \
+            examples/lpr/*.yaml \
+            examples/cameras/*.yml || true
+
+      - name: Validate YAML structure (with HA tag support)
+        run: |
+          python3 <<'PYEOF'
+          import glob
+          import sys
+          import yaml
+
+          # HA-specific YAML tag support — required for !include, !secret, !env_var
+          class HALoader(yaml.SafeLoader):
+              pass
+
+          def ha_tag_passthrough(loader, node):
+              if isinstance(node, yaml.ScalarNode):
+                  return loader.construct_scalar(node)
+              elif isinstance(node, yaml.SequenceNode):
+                  return loader.construct_sequence(node)
+              elif isinstance(node, yaml.MappingNode):
+                  return loader.construct_mapping(node)
+              return None
+
+          for tag in ['!include', '!secret', '!env_var', '!include_dir_list',
+                      '!include_dir_named', '!include_dir_merge_list', '!include_dir_merge_named']:
+              HALoader.add_constructor(tag, ha_tag_passthrough)
+
+          # All YAML files we care about
+          files = sorted(set(
+              ['docker-compose.yml', 'docker-compose.macwin.yml', 'config/frigate.yml'] +
+              glob.glob('config/homeassistant/*.yaml') +
+              glob.glob('examples/multi-camera/*.yml') +
+              glob.glob('examples/multi-camera/*.yaml') +
+              glob.glob('examples/multi-spot-single-camera/*.yml') +
+              glob.glob('examples/multi-spot-single-camera/*.yaml') +
+              glob.glob('examples/lpr/*.yml') +
+              glob.glob('examples/lpr/*.yaml') +
+              glob.glob('examples/cameras/*.yml')
+          ))
+
+          ok = True
+          for f in files:
+              try:
+                  yaml.load(open(f), Loader=HALoader)
+                  print(f'✓ {f}')
+              except Exception as e:
+                  print(f'✗ {f}: {e}')
+                  ok = False
+
+          if not ok:
+              sys.exit(1)
+          PYEOF
+
+      - name: Validate docker-compose.yml structure (Linux mode)
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          echo "✓ docker-compose.yml structure OK"
+
+      - name: Validate docker-compose.yml + macwin override (Docker Desktop mode)
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.macwin.yml config --quiet
+          echo "✓ docker-compose + macwin override OK"
+
+      - name: Validate docker-compose.yml + LPR override
+        run: |
+          docker compose -f docker-compose.yml -f examples/lpr/docker-compose.lpr.yml config --quiet
+          echo "✓ docker-compose + LPR override OK"
+
+  shellcheck:
+    name: ShellCheck scripts
+    needs: validate          # skip if YAML invalid
+    # SECURITY: same-repo / push only — never run fork-PR scripts on the self-hosted runner.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Verify shellcheck available (pre-installed on self-hosted runner)
+        run: shellcheck --version
+      - name: Run shellcheck
+        run: |
+          # Pin severity: only flag error/warning, not style/info
+          # This way new shellcheck releases adding style rules don't break CI
+          shellcheck --severity=warning scripts/*.sh
+          echo "✓ all scripts OK"
+      - name: Test install-git-hooks.sh runs without error
+        run: |
+          git init -q test-repo
+          cd test-repo
+          mkdir -p scripts
+          cp ../scripts/install-git-hooks.sh scripts/
+          bash scripts/install-git-hooks.sh
+          test -x .git/hooks/pre-commit
+          echo "✓ pre-commit hook installs successfully"
+
+  frigate-config:
+    name: Frigate config schema validation
+    needs: validate          # skip if YAML invalid
+    # SECURITY: same-repo / push only — never docker-run fork-PR configs on the self-hosted runner.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Pull Frigate image (single shared pull)
+        run: docker pull ghcr.io/blakeblackshear/frigate:stable
+      - name: Validate all Frigate configs against stable image
+        # Single job validates all 4 configs against ONE shared image pull
+        # (matrix strategy previously pulled the ~2GB image 4 times in parallel).
+        run: |
+          set -e
+          for CFG in config/frigate.yml \
+                     examples/multi-camera/frigate.yml \
+                     examples/multi-spot-single-camera/frigate.yml \
+                     examples/lpr/frigate.lpr.yml; do
+            echo "─── Validating $CFG ───"
+            docker run --rm \
+              -v "$PWD/$CFG:/config/config.yml:ro" \
+              --entrypoint python3 \
+              ghcr.io/blakeblackshear/frigate:stable \
+              -c "
+          import yaml
+          c = yaml.safe_load(open('/config/config.yml'))
+          assert 'mqtt' in c, 'missing mqtt'
+          assert 'cameras' in c, 'missing cameras'
+          assert 'detectors' in c, 'missing detectors'
+          for name, cam in c['cameras'].items():
+              assert 'ffmpeg' in cam, f'camera {name}: missing ffmpeg'
+              assert 'zones' in cam, f'camera {name}: missing zones'
+              assert any('detect' in inp.get('roles',[]) for inp in cam['ffmpeg']['inputs']), f'camera {name}: no detect role'
+          print('✓ OK')
+          " || { echo "✗ $CFG FAILED"; exit 1; }
+          done
+          echo "✓ All Frigate configs valid"
+
+  actionlint:
+    name: Lint GitHub workflows
+    # GitHub-schema validation of the workflow files. PyYAML (the validate job) accepts
+    # files that GitHub itself rejects — e.g. a literal `${{ }}` inside a run: comment,
+    # which is a fatal parse error that silently disables the workflow. actionlint catches it.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: actionlint
+        # Self-hosted labels are declared in .github/actionlint.yaml. Run shellcheck-less
+        # to avoid style noise; -shellcheck= disables the embedded shellcheck pass.
+        run: docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.7 -color -shellcheck=

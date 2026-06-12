@@ -1,0 +1,64 @@
+###############################################################################
+# Frigate camera template — TP-Link Tapo
+#
+# Tested with: C100, C110, C200, C210, C310, C320WS, C520WS, C420S2
+#
+# Important: Tapo cameras require a SEPARATE "third-party access" account
+# (different from your TP-Link cloud account).
+#
+# Setup steps:
+#
+# Step 1 — Create third-party access account in Tapo app:
+#
+#   1. Open Tapo app on phone
+#   2. Tap your camera → Camera Settings (gear icon top-right)
+#   3. Advanced Settings → Camera Account
+#   4. Toggle ON
+#   5. Set username and password — write them down (case-sensitive)
+#
+# Step 2 — Find camera IP:
+#
+#   Open Tapo app → camera → Settings → Device Info → IP address
+#   Or check your router DHCP list for "Tapo-*"
+#
+# Step 3 — Set a static IP (important! Tapo loves to renew DHCP):
+#
+#   In your router, set a DHCP reservation for the Tapo MAC address.
+#
+# RTSP URL pattern:
+#
+#   Main:  rtsp://USER:PASS@IP:554/stream1
+#   Sub:   rtsp://USER:PASS@IP:554/stream2
+#
+# Where USER/PASS are the THIRD-PARTY ACCESS credentials (not Tapo cloud).
+#
+# Quirks:
+#   - Sub stream is sometimes limited to 360p @ 15fps (no way to increase)
+#   - If detection accuracy is poor, use stream1 (main) for both detect + record
+#   - Older firmwares (<1.1.0) may not support RTSP at all — update firmware
+#   - Battery cameras (C100, C310) have RTSP only when plugged in to power
+###############################################################################
+
+cameras:
+  parking:
+    ffmpeg:
+      inputs:
+        # IMPORTANT: For Tapo cameras at >15m distance OR for parking detection
+        # at 1080p quality, use MAIN stream for both detect+record.
+        # Tapo sub-stream is capped at 360p15 → car at 20m is <50px tall → poor
+        # detection. CPU cost is higher (~2× vs sub-stream) but quality matters.
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/stream1
+          roles: [detect, record]
+
+        # ALTERNATIVE: if camera is <10m from spot AND you want lower CPU,
+        # uncomment the dual-stream version below + comment the line above:
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/stream2
+        #   roles: [detect]
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/stream1
+        #   roles: [record]
+
+    # Main stream is 1080p — match detect resolution:
+    detect:
+      width: 1920
+      height: 1080
+      fps: 5

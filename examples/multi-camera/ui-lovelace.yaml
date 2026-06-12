@@ -1,0 +1,97 @@
+###############################################################################
+# Lovelace Dashboard — Multi-camera (3 separate cameras, 3 zones)
+# Copy to config/homeassistant/ui-lovelace.yaml when using multi-camera setup
+###############################################################################
+
+title: Parking Multi-Camera
+views:
+
+  - title: Overview
+    path: overview
+    icon: mdi:cctv
+    cards:
+      # ─── Summary ───
+      - type: markdown
+        content: |
+          ## 🅿️ Multi-Camera Parking
+          3 independent cameras, 3 spots monitored.
+
+      # ─── Spot A ───
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: "### 📷 Parking A"
+          - type: glance
+            entities:
+              - entity: sensor.parking_a_spot_a_car
+                name: Cars in spot
+              - entity: binary_sensor.parking_a_motion
+                name: Motion
+          - type: picture-entity
+            entity: camera.parking_a
+            camera_view: live
+            show_state: false
+
+      # ─── Spot B ───
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: "### 📷 Parking B"
+          - type: glance
+            entities:
+              - entity: sensor.parking_b_spot_b_car
+                name: Cars in spot
+              - entity: binary_sensor.parking_b_motion
+                name: Motion
+          - type: picture-entity
+            entity: camera.parking_b
+            camera_view: live
+            show_state: false
+
+      # ─── Garage ───
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: "### 🚗 Garage"
+          - type: glance
+            entities:
+              - entity: sensor.garage_garage_spot_car
+                name: Cars in spot
+              - entity: binary_sensor.garage_motion
+                name: Motion
+          - type: picture-entity
+            entity: camera.garage
+            camera_view: live
+            show_state: false
+
+      # ─── History — all 3 spots ───
+      - type: history-graph
+        title: 24h occupancy per camera
+        hours_to_show: 24
+        entities:
+          - sensor.parking_a_spot_a_car
+          - sensor.parking_b_spot_b_car
+          - sensor.garage_garage_spot_car
+
+  - title: Diagnostics
+    path: diagnostics
+    icon: mdi:chart-line
+    cards:
+      - type: entities
+        title: Automations
+        entities:
+          - automation.parking_a_free
+          - automation.parking_b_free
+          - automation.garage_free
+          - automation.parking_summary_hourly
+      - type: entities
+        title: All cameras
+        entities:
+          - camera.parking_a
+          - camera.parking_b
+          - camera.garage
+      - type: iframe
+        title: Frigate UI
+        # setup.sh substitutes DOCKER_HOST_IP with your LAN IP
+        url: http://DOCKER_HOST_IP:5000
+        aspect_ratio: '16:9'

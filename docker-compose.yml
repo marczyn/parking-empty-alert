@@ -1,0 +1,185 @@
+###############################################################################
+# Parking Empty Alert — Frigate + MQTT + Home Assistant
+# Universal stack — works on any Docker host (Linux/Windows/macOS)
+# Hardware: no special requirements (CPU only, optional Coral USB)
+#
+# Quick start:
+#   1. Copy .env.example -> .env and fill in passwords + camera IP
+#   2. docker compose up -d
+#   3. Open Frigate UI:  http://<host>:8090
+#   4. Open HA UI:        http://<host>:8123
+#
+# Docker Desktop (macOS/Windows) note:
+# `network_mode: host` for Home Assistant only works on Linux.
+# On macOS/Windows, use docker-compose.macwin.yml override (see docs/INSTALLATION.md).
+#
+# Supply-chain note: images are pinned to immutable @sha256 digests (the tag is
+# kept for readability only — the digest is what Docker pulls). This guarantees
+# reproducible deploys and blocks tag-mutation attacks, but means
+# `docker compose pull` will NOT pick up newer upstream images automatically.
+# To intentionally bump to a newer image, refresh the digest, e.g.:
+#   docker buildx imagetools inspect eclipse-mosquitto:2.0 --format '{{.Manifest.Digest}}'
+# then replace the @sha256:... below (review upstream release notes first).
+###############################################################################
+
+services:
+
+  # ─────────────────────────────────────────────────────────────
+  # MQTT broker — communication Frigate ↔ Home Assistant
+  # ─────────────────────────────────────────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2.0@sha256:914f529386804c8278a4e581526b9be5e1604df44b30daabc70aa97dcefe5268
+    container_name: mosquitto
+    restart: always
+    ports:
+      # Publish ONLY to loopback. In-stack clients do NOT use this host port — Frigate
+      # connects over the internal bridge (broker host "mosquitto") and Home Assistant
+      # uses its configured broker ("mosquitto"); this published port only ever served
+      # external MQTT clients. MQTT/1883 is plaintext, so a 0.0.0.0 publish would let
+      # anyone on the LAN sniff the credentials and spoof parking state — keep it on
+      # loopback (host-local tools can still reach 127.0.0.1:1883). For a genuine remote
+      # client, add a TLS listener instead of exposing plaintext 1883.
+      - "127.0.0.1:1883:1883"
+    volumes:
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      # NOTE: ./config/passwd MUST exist before 'docker compose up'.
+      # If missing, Docker creates an empty DIRECTORY (not a file) and mosquitto
+      # fails to start. Run 'bash scripts/setup.sh' first — it generates passwd.
+      - ./config/passwd:/mosquitto/config/passwd:ro
+      - mosquitto-data:/mosquitto/data
+    # Built-in log rotation via Docker (json-file driver default = 10MB × 3 files)
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      # Pass credentials into container so healthcheck can authenticate
+      MQTT_USER: "${MQTT_USER}"
+      MQTT_PASSWORD: "${MQTT_PASSWORD}"
+      # Timezone — for consistent log timestamps
+      TZ: "${TZ:-UTC}"
+    # Resource limits — Mosquitto is lightweight, 256MB is plenty
+    mem_limit: 256m
+    mem_reservation: 64m
+    cpus: 0.5
+    healthcheck:
+      # mosquitto_pub returns 0 on success, non-zero on connection failure
+      # $$VAR escapes compose variable interpolation; resolves to $VAR at runtime
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t healthcheck -m ok -q 0 -u $$MQTT_USER -P $$MQTT_PASSWORD || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ─────────────────────────────────────────────────────────────
+  # Frigate — NVR + AI object detection
+  # ─────────────────────────────────────────────────────────────
+  frigate:
+    image: ghcr.io/blakeblackshear/frigate:stable@sha256:1724960349dad0bd2ae8ec884171a6fd5755a4dc242a0e66cadbda9c0e85c99b
+    container_name: frigate
+    restart: always
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+    shm_size: 256mb          # increase to 512mb if >1 camera
+    # Resource limits — Frigate uses ~600MB-1.5GB depending on cameras
+    # If you have >2 cameras, bump mem_limit to 2g+
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: 4.0          # cap to keep host responsive
+    # Hardware device passthrough — uncomment matching block(s) for your setup:
+    #
+    # Intel iGPU (VAAPI hardware accel):
+    # devices:
+    #   - /dev/dri:/dev/dri
+    #
+    # Coral USB TPU (edgetpu detector):
+    # devices:
+    #   - /dev/bus/usb:/dev/bus/usb
+    #
+    # NVIDIA GPU (TensorRT detector):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{driver: nvidia, count: 1, capabilities: [gpu]}]
+    #
+    # Note: After uncommenting, also uncomment the matching hwaccel_args /
+    # detector type in config/frigate.yml.
+    environment:
+      FRIGATE_RTSP_USER: "${RTSP_USER}"
+      FRIGATE_RTSP_PASSWORD: "${RTSP_PASSWORD}"
+      FRIGATE_MQTT_USER: "${MQTT_USER}"
+      FRIGATE_MQTT_PASSWORD: "${MQTT_PASSWORD}"
+      # Timezone — same as HA, so snapshot/recording timestamps match
+      TZ: "${TZ:-UTC}"
+    volumes:
+      - ./config/frigate.yml:/config/config.yml:ro
+      - frigate-storage:/media/frigate
+      - /etc/localtime:/etc/localtime:ro
+      - type: tmpfs
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000   # 1GB cache in RAM
+    ports:
+      - "8090:5000"          # Frigate UI (web) — 8090 avoids Synology DSM port 5000 conflict
+      - "8554:8554"          # RTSP restream — re-publishes camera streams; useful
+                             # for viewing in VLC or other RTSP clients without
+                             # hitting the camera directly. Remove if not needed.
+      - "8555:8555/tcp"      # WebRTC TCP — low-latency live preview in Frigate UI
+      - "8555:8555/udp"      # WebRTC UDP — same as above (UDP path is preferred)
+    # Frigate's built-in healthcheck is already in the image (HTTP /api/version)
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  # ─────────────────────────────────────────────────────────────
+  # Home Assistant — automations + push notifications
+  # ─────────────────────────────────────────────────────────────
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable@sha256:b82fab7973fa1ba5eb69a8aaab3a830d56d986d495d894faf0ee969ad27839a6
+    container_name: homeassistant
+    restart: always
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      frigate:
+        condition: service_started
+    # network_mode: host works on Linux. macOS/Windows: use override file
+    # `docker compose -f docker-compose.yml -f docker-compose.macwin.yml up -d`
+    network_mode: host
+    # NOTE: privileged is intentionally NOT set — this stack passes no USB/serial/
+    # Bluetooth/Zigbee device through to Home Assistant, so privileged would only add
+    # blast radius (a compromise of HA would become full host root). If you add a
+    # hardware integration, prefer specific `devices:` / `cap_add:` entries instead.
+    # Resource limits — HA uses ~500MB-1GB typically; bump for many integrations
+    mem_limit: 1500m
+    mem_reservation: 256m
+    cpus: 2.0
+    environment:
+      # Timezone — defaults to UTC if not set. Override via .env (TZ=America/New_York etc.)
+      # IANA timezone list: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      TZ: "${TZ:-UTC}"
+    volumes:
+      - ./config/homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      # HA's /api/ endpoint returns 401 without auth — counts as "responding"
+      # which is what we want. Using -o /dev/null -w '%{http_code}' to capture
+      # status code; accept 200 (running) or 401 (running, needs auth).
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -w '%{http_code}' http://localhost:8123 | grep -qE '^(200|401)$$' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s   # HA needs ~60s to fully boot
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+volumes:
+  mosquitto-data:
+  frigate-storage:

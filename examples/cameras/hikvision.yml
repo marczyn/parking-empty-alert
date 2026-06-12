@@ -1,0 +1,43 @@
+###############################################################################
+# Frigate camera template — Hikvision
+#
+# Tested with: DS-2CD2032, DS-2CD2143G2, DS-2DE3, DarkFighter, ColorVu series
+# Compatible: Annke (rebranded Hikvision), LTS, Onwote
+#
+# RTSP URL pattern:
+#   rtsp://USER:PASS@IP:554/Streaming/Channels/{ch}{stream}
+#
+# Where:
+#   {ch}     = channel number (1 for single camera, 1-N for NVR)
+#   {stream} = 01 (main, high-res) or 02 (sub, low-res)
+#
+# Examples:
+#   Single camera main:  rtsp://admin:pass@192.168.1.100:554/Streaming/Channels/101
+#   Single camera sub:   rtsp://admin:pass@192.168.1.100:554/Streaming/Channels/102
+#   NVR channel 3 main:  rtsp://admin:pass@192.168.1.50:554/Streaming/Channels/301
+#
+# Configuration steps:
+#   1. Web UI → Configuration → System → Security → User → create "frigate" user
+#      (permission: User — view-only)
+#   2. Web UI → Configuration → Network → Advanced → check RTSP enabled (port 554)
+#   3. Web UI → Configuration → Image → Stream Settings:
+#      - Main stream: 1080p H.264, 25fps, 2-4 Mbps
+#      - Sub stream: 640x360 H.264, 5fps, 256-512 Kbps
+###############################################################################
+
+# Replace ONLY the cameras.parking.ffmpeg.inputs section in config/frigate.yml.
+# Keep everything else (objects, zones, snapshots, etc.) from the base config.
+
+cameras:
+  parking:
+    ffmpeg:
+      inputs:
+        # SUB stream (low-res) for AI detection
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/Streaming/Channels/102
+          roles: [detect]
+        # MAIN stream (high-res) for recording
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/Streaming/Channels/101
+          roles: [record]
+        # Alternative for HEVC-only models:
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/Streaming/Channels/102/?transportmode=mcast
+        #   roles: [detect]

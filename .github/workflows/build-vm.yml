@@ -1,0 +1,203 @@
+name: Build VM images (OVA)
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. 1.0.2)'
+        required: true
+        default: 'dev'
+
+permissions:
+  contents: write   # upload release assets
+
+env:
+  # Consumed in-shell as "$VERSION" inside each "Resolve version" step (never ${{ }}
+  # template-expanded into a command line). The 'v' prefix is stripped there with ${V#v}.
+  VERSION: ${{ github.event.inputs.version || github.event.release.tag_name || 'dev' }}
+
+jobs:
+
+  check-runner:
+    name: Verify KVM available
+    runs-on: [self-hosted, linux, x64, parking]
+    outputs:
+      kvm: ${{ steps.kvm.outputs.available }}
+    steps:
+      - name: Check /dev/kvm
+        id: kvm
+        run: |
+          if [ -e /dev/kvm ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "KVM available — builds will use hardware acceleration"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "WARNING: /dev/kvm not found — builds will use TCG (slow)"
+          fi
+
+  build-full:
+    name: Build full OVA
+    needs: check-runner
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          V="$VERSION"   # consume the env var in-shell; never template-expand untrusted input into the command
+          # Strip leading 'v' if present
+          V="${V#v}"
+          # Allowlist: only version-safe chars, so the value can never carry shell metacharacters
+          case "$V" in
+            ''|*[!A-Za-z0-9._-]*) echo "::error::invalid version '$V' (allowed: A-Za-z0-9 . _ -)"; exit 1 ;;
+          esac
+          echo "version=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Debian cloud image
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.packer-cache
+          key: debian-12-genericcloud-amd64-latest
+          restore-keys: debian-12-genericcloud-amd64-
+
+      - name: Install Packer
+        uses: hashicorp/setup-packer@1aa358be5cf73883762b302a3a03abd66e75b232 # v3 (release line, pinned to SHA)
+        with:
+          version: "1.11.2"               # pin Packer (was 'latest')
+
+      - name: Install QEMU and deps
+        run: |
+          pkgs=""
+          command -v qemu-system-x86_64 &>/dev/null || pkgs="$pkgs qemu-system-x86 qemu-utils"
+          command -v xorriso &>/dev/null          || pkgs="$pkgs xorriso"
+          if [ -n "$pkgs" ]; then sudo apt-get install -y $pkgs; fi
+
+      - name: Packer init
+        working-directory: vm
+        run: packer init parking.pkr.hcl
+
+      - name: Build full OVA
+        working-directory: ${{ github.workspace }}
+        env:
+          PACKER_CACHE_DIR: ~/.packer-cache
+          PACKER_LOG: 1
+          # Consume the resolved version as a shell var — never ${{ }} template-expand it
+          # into the command line (command-injection sink). Already allowlist-validated above.
+          VER: ${{ steps.version.outputs.version }}
+        run: |
+          packer build \
+            -var "variant=full" \
+            -var "version=$VER" \
+            vm/parking.pkr.hcl
+
+      - name: Upload full OVA as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ova-full
+          path: output/ova/parking-empty-alert-full-${{ steps.version.outputs.version }}.ova
+          retention-days: 7
+
+  build-lite:
+    name: Build lite OVA
+    needs: check-runner
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          V="$VERSION"   # consume the env var in-shell; never template-expand untrusted input into the command
+          V="${V#v}"
+          case "$V" in
+            ''|*[!A-Za-z0-9._-]*) echo "::error::invalid version '$V' (allowed: A-Za-z0-9 . _ -)"; exit 1 ;;
+          esac
+          echo "version=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Debian cloud image
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.packer-cache
+          key: debian-12-genericcloud-amd64-latest
+          restore-keys: debian-12-genericcloud-amd64-
+
+      - name: Install Packer
+        uses: hashicorp/setup-packer@1aa358be5cf73883762b302a3a03abd66e75b232 # v3 (release line, pinned to SHA)
+        with:
+          version: "1.11.2"               # pin Packer (was 'latest')
+
+      - name: Install QEMU and deps
+        run: |
+          pkgs=""
+          command -v qemu-system-x86_64 &>/dev/null || pkgs="$pkgs qemu-system-x86 qemu-utils"
+          command -v xorriso &>/dev/null          || pkgs="$pkgs xorriso"
+          if [ -n "$pkgs" ]; then sudo apt-get install -y $pkgs; fi
+
+      - name: Packer init
+        working-directory: vm
+        run: packer init parking.pkr.hcl
+
+      - name: Build lite OVA
+        working-directory: ${{ github.workspace }}
+        env:
+          PACKER_CACHE_DIR: ~/.packer-cache
+          PACKER_LOG: 1
+          # Consume the resolved version as a shell var — never ${{ }} template-expand it
+          # into the command line (command-injection sink). Already allowlist-validated above.
+          VER: ${{ steps.version.outputs.version }}
+        run: |
+          packer build \
+            -var "variant=lite" \
+            -var "version=$VER" \
+            vm/parking.pkr.hcl
+
+      - name: Upload lite OVA as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ova-lite
+          path: output/ova/parking-empty-alert-lite-${{ steps.version.outputs.version }}.ova
+          retention-days: 7
+
+  attach-to-release:
+    name: Attach OVAs to release
+    needs: [build-full, build-lite]
+    runs-on: [self-hosted, linux, x64, parking]
+    if: github.event_name == 'release'
+    steps:
+      - name: Resolve version
+        id: version
+        run: |
+          V="$VERSION"   # consume the env var in-shell; never template-expand untrusted input into the command
+          V="${V#v}"
+          case "$V" in
+            ''|*[!A-Za-z0-9._-]*) echo "::error::invalid version '$V' (allowed: A-Za-z0-9 . _ -)"; exit 1 ;;
+          esac
+          echo "version=${V}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ova-full
+          path: output/ova
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ova-lite
+          path: output/ova
+
+      - name: Upload OVAs to release
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            "output/ova/parking-empty-alert-full-${VER}.ova" \
+            "output/ova/parking-empty-alert-lite-${VER}.ova" \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          # Pass event-derived values via env (consumed as "$RELEASE_TAG"/"$VER")
+          # rather than ${{ }} template-expanding them into the shell — a tag name can
+          # carry shell metacharacters (command-injection sink).
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          VER: ${{ steps.version.outputs.version }}

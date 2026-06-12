@@ -1,0 +1,15 @@
+.git
+.gitignore
+.github
+.env
+config/passwd
+config/homeassistant/.storage
+config/homeassistant/.cloud
+config/homeassistant/home-assistant.log*
+config/homeassistant/home-assistant_v2.db*
+config/homeassistant/deps
+config/homeassistant/tts
+config/homeassistant/www
+config/homeassistant/custom_components
+*.tar.gz
+*.bak

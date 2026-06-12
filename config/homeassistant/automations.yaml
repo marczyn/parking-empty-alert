@@ -1,0 +1,121 @@
+###############################################################################
+# AUTOMATION: 🅿️ Parking spot EMPTY → WhatsApp
+#
+# Triggers when:
+#   - Frigate reports 0 cars in zone "parking_spot"
+#   - State persists for 2 minutes (anti-blink filter — driver passing through)
+#
+# Action:
+#   - WhatsApp message via CallMeBot
+###############################################################################
+- id: parking_spot_free_alert
+  alias: "🅿️ Parking spot empty → WhatsApp"
+  description: "WhatsApp alert when spot has been empty for 2 min"
+  mode: single
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.parking_parking_spot_car
+      below: 1
+      for:
+        minutes: 2
+  condition:
+    # Guard against false trigger when sensor recovers from 'unavailable' to 0.
+    # Only fire if sensor was reading 1+ (occupied) before going to 0.
+    - condition: template
+      value_template: >
+        {{ trigger.from_state is not none
+           and trigger.from_state.state not in ['unknown', 'unavailable', 'none']
+           and (trigger.from_state.state | int(0)) >= 1 }}
+  action:
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          🅿️ Parking spot FREE!
+          You can park — became free 2 min ago.
+          Time: {{ now().strftime('%H:%M') }}
+
+###############################################################################
+# AUTOMATION: 🚗 Parking spot OCCUPIED → WhatsApp (optional)
+# Disabled by default — uncomment if you also want "someone parked" alert
+###############################################################################
+# - id: parking_spot_taken_alert
+#   alias: "🚗 Parking spot occupied → WhatsApp"
+#   mode: single
+#   trigger:
+#     - platform: numeric_state
+#       entity_id: sensor.parking_parking_spot_car
+#       above: 0
+#       for:
+#         seconds: 30
+#   action:
+#     - service: notify.whatsapp_parking
+#       data:
+#         message: >
+#           🚗 A car parked in the spot.
+#           Time: {{ now().strftime('%H:%M') }}
+
+###############################################################################
+# WATCHDOG: ⚠️ Frigate offline detection
+#
+# If Frigate's motion sensor becomes "unavailable" for >10 minutes,
+# the AI pipeline is broken — send WhatsApp so the user knows to investigate.
+###############################################################################
+- id: frigate_offline_watchdog
+  alias: "⚠️ Frigate offline watchdog"
+  description: "Alert if Frigate stops reporting state >10 min"
+  mode: single
+  trigger:
+    # Also treat 'unknown' (entity recreated / availability never published) as down.
+    # The 10-min hold means a transient startup 'unknown' never fires.
+    - platform: state
+      entity_id: binary_sensor.parking_motion
+      to: ["unavailable", "unknown"]
+      for:
+        minutes: 10
+  action:
+    # Record that a real outage occurred, so the "recovered" alert only fires after one.
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.parking_frigate_offline
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ⚠️ Frigate offline >10 min!
+          AI detection stopped. Check Docker host.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}
+
+###############################################################################
+# WATCHDOG: ✅ Frigate recovered
+#
+# Fires ONLY when a real >10-min outage was previously flagged — so a routine HA
+# restart / MQTT reload (entity goes unavailable→on/off within seconds) does NOT
+# produce a false "recovered" alert.
+###############################################################################
+- id: frigate_recovered_watchdog
+  alias: "✅ Frigate recovered"
+  description: "Notify when Frigate comes back after a real offline period"
+  mode: single
+  trigger:
+    # Fire the instant the sensor returns to a real state from a down state. NO `for:`
+    # here on purpose: binary_sensor.parking_motion churns on<->off every few seconds,
+    # and a `for:` hold combined with from/to is cancelled by that churn, so the
+    # recovery alert would never fire (and the offline flag would stay stuck on).
+    - platform: state
+      entity_id: binary_sensor.parking_motion
+      from: ["unavailable", "unknown"]
+      to: ["on", "off"]
+  condition:
+    # Only if the offline watchdog actually flagged an outage this session.
+    - condition: state
+      entity_id: input_boolean.parking_frigate_offline
+      state: "on"
+  action:
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.parking_frigate_offline
+    - service: notify.whatsapp_parking
+      data:
+        message: >
+          ✅ Frigate back online.
+          AI detection resumed.
+          Time: {{ now().strftime('%Y-%m-%d %H:%M') }}

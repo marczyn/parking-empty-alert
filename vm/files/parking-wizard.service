@@ -1,0 +1,23 @@
+[Unit]
+Description=parking-empty-alert First-Boot Configuration Wizard
+After=network-online.target docker.service
+Wants=network-online.target
+# Take over tty1 for the interactive wizard; release when done
+Before=getty@tty1.service
+Conflicts=getty@tty1.service
+# Skip if already configured (sentinel present)
+ConditionPathExists=!/var/lib/parking/.configured
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/parking-wizard
+StandardInput=tty
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

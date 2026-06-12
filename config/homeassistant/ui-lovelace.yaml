@@ -1,0 +1,153 @@
+###############################################################################
+# Home Assistant Lovelace Dashboard — Parking Empty Alert
+#
+# To enable: in configuration.yaml change `lovelace:` to:
+#   lovelace:
+#     mode: yaml
+#     resources: []
+#
+# Then restart HA. This file becomes the main dashboard.
+# (Storage-mode users: import via Settings → Dashboards → Add → Take Control)
+###############################################################################
+
+title: Parking Monitor
+views:
+
+  - title: Overview
+    path: overview
+    icon: mdi:car-parking-lights
+    cards:
+
+      # ─── Hero status card ───
+      - type: vertical-stack
+        cards:
+          - type: markdown
+            content: |
+              ## 🅿️ Parking Status
+
+          - type: glance
+            title: ""
+            columns: 1
+            entities:
+              - entity: sensor.parking_parking_spot_car
+                name: Cars in spot
+                icon: mdi:car
+
+          - type: conditional
+            conditions:
+              - entity: sensor.parking_parking_spot_car
+                state: "0"
+            card:
+              type: markdown
+              content: |
+                ### ✅ Spot is FREE
+                You can park now.
+
+          - type: conditional
+            # All three must hold — so a non-numeric state (unavailable/unknown) does
+            # NOT get reported as OCCUPIED. Only a real count ≥1 shows this card.
+            conditions:
+              - entity: sensor.parking_parking_spot_car
+                state_not: "0"
+              - entity: sensor.parking_parking_spot_car
+                state_not: "unavailable"
+              - entity: sensor.parking_parking_spot_car
+                state_not: "unknown"
+            card:
+              type: markdown
+              content: |
+                ### 🚫 Spot is OCCUPIED
+                Wait for someone to leave.
+
+          - type: conditional
+            # Frigate offline / sensor not yet initialized — don't show a misleading
+            # FREE/OCCUPIED status when we actually have no data.
+            conditions:
+              - entity: sensor.parking_parking_spot_car
+                state: ["unavailable", "unknown"]
+            card:
+              type: markdown
+              content: |
+                ### ⏳ Detection offline
+                Parking status unknown — Frigate is unavailable.
+
+      # ─── Live camera ───
+      - type: picture-entity
+        entity: camera.parking
+        camera_view: live
+        show_state: false
+        show_name: true
+        name: Live camera
+
+      # ─── Last detection snapshot ───
+      - type: picture-entity
+        entity: image.parking_parking_spot
+        show_state: false
+        show_name: true
+        name: Last zone snapshot
+
+      # ─── Detection details ───
+      - type: entities
+        title: Detection details
+        entities:
+          - entity: binary_sensor.parking_motion
+            name: Motion in frame
+          - entity: binary_sensor.parking_car_occupied
+            name: Car in frame (anywhere)
+          - entity: binary_sensor.parking_person_occupied
+            name: Person in frame
+          - entity: switch.parking_detect
+            name: Detection enabled
+          - entity: switch.parking_recordings
+            name: Recordings enabled
+
+      # ─── History plot ───
+      - type: history-graph
+        title: Last 24h occupancy
+        hours_to_show: 24
+        entities:
+          - sensor.parking_parking_spot_car
+
+  - title: Events
+    path: events
+    icon: mdi:history
+    cards:
+      - type: logbook
+        title: Recent state changes
+        hours_to_show: 24
+        entities:
+          - sensor.parking_parking_spot_car
+          - binary_sensor.parking_motion
+          - binary_sensor.parking_car_occupied
+      - type: iframe
+        title: Frigate Events
+        # Frigate UI iframe — uses host's public address since browser cannot
+        # resolve Docker DNS (e.g., "frigate"). Replace <DOCKER_HOST_IP> with
+        # the IP that your phone/browser sees (e.g., 192.168.1.10).
+        url: http://DOCKER_HOST_IP:5000/events
+        aspect_ratio: '16:9'   # widescreen — fits both desktop and mobile portrait better
+
+# IMPORTANT: After installing, replace DOCKER_HOST_IP everywhere in this file:
+#   sed -i 's/DOCKER_HOST_IP/192.168.1.10/g' config/homeassistant/ui-lovelace.yaml
+# (Use the IP that your browser uses to reach Home Assistant.)
+
+  - title: Diagnostics
+    path: diagnostics
+    icon: mdi:chart-line
+    cards:
+      - type: entities
+        title: System status
+        entities:
+          - entity: automation.parking_spot_free_alert
+            name: Empty-spot alert automation
+          - entity: automation.frigate_offline_watchdog
+            name: Frigate offline watchdog
+          - entity: automation.frigate_recovered_watchdog
+            name: Frigate recovered watchdog
+      - type: iframe
+        title: Frigate UI
+        # Frigate UI iframe — uses host's public address since browser cannot
+        # resolve Docker DNS (e.g., "frigate"). Replace <DOCKER_HOST_IP> with
+        # the IP that your phone/browser sees (e.g., 192.168.1.10).
+        url: http://DOCKER_HOST_IP:5000
+        aspect_ratio: '16:9'   # widescreen — fits both desktop and mobile portrait better

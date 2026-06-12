@@ -1,0 +1,33 @@
+###############################################################################
+# Docker Compose override for macOS and Windows (Docker Desktop)
+#
+# Docker Desktop does not support `network_mode: host` properly.
+# This override switches HA to bridge networking with explicit port mapping.
+#
+# Use:
+#   docker compose -f docker-compose.yml -f docker-compose.macwin.yml up -d
+#
+# Note: Home Assistant Companion mobile app discovery may not work automatically.
+# Connect manually with http://<your-mac-IP>:8123
+###############################################################################
+
+services:
+  homeassistant:
+    network_mode: bridge        # override host mode
+    ports:
+      - "8123:8123"             # HA web UI
+    privileged: false           # not needed in bridge mode
+    # Bridged HA can't resolve the compose service name `mosquitto` (default bridge has
+    # no DNS) and `127.0.0.1` would be the HA container itself — so reach the broker,
+    # which is published on the host's loopback, via the Docker Desktop host gateway.
+    environment:
+      MQTT_BROKER: "host.docker.internal"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Preserve depends_on from base compose — compose merges, but explicit is safer.
+    # Without re-stating, some compose versions drop the dep chain on override.
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      frigate:
+        condition: service_started

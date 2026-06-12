@@ -1,0 +1,157 @@
+###############################################################################
+# Frigate config — with License Plate Recognition (LPR)
+# Replaces config/frigate.yml when LPR is enabled.
+# Differences vs base config:
+#   - Added "license_plate" to tracked objects
+#   - Added genai block with CodeProject AI endpoint
+#   - Added zone-level LPR snapshot capture
+###############################################################################
+
+mqtt:
+  enabled: true
+  host: mosquitto
+  port: 1883
+  user: "{FRIGATE_MQTT_USER}"
+  password: "{FRIGATE_MQTT_PASSWORD}"
+  topic_prefix: frigate
+  # client_id substituted to unique '<hostname>' by setup.sh
+  client_id: frigate
+
+detectors:
+  cpu1:
+    type: cpu
+    num_threads: 3
+
+model:
+  path: /config/model_cache/yolov8n_320x320.onnx
+  input_tensor: nchw
+  input_pixel_format: rgb
+  input_dtype: float
+  width: 320
+  height: 320
+  labelmap_path: /labelmap/coco-80.txt
+
+ffmpeg:
+
+###############################################################################
+# GenAI: LPR via CodeProject AI
+#
+# ⚠️ EXPERIMENTAL: Frigate's genai officially supports gemini/ollama/openai/azure.
+# Using 'openai' provider with custom base_url pointing at CodeProject AI is not
+# officially supported. If it fails for you, alternatives:
+#   1. Frigate+ subscription ($50/year, native LPR — easier path)
+#   2. HA Plate Recognizer integration (independent of Frigate)
+#   3. Wait for Frigate native CodeProject AI support (planned 0.17+)
+#
+# When Frigate detects a car, it sends the cropped plate region to CodeProject AI
+# for OCR. The recognized text is published to MQTT as event metadata.
+###############################################################################
+genai:
+  enabled: true
+  provider: openai
+  base_url: http://codeproject-ai:32168/v1
+  model: "alpr"   # CodeProject AI License Plate Reader module
+  api_key: "not_required"   # local instance doesn't require auth
+
+detect:
+  enabled: true
+  fps: 5
+  max_disappeared: 25
+  stationary:
+    interval: 50
+    threshold: 50
+    max_frames:
+      default: 0
+
+snapshots:
+  enabled: true
+  timestamp: true
+  bounding_box: true
+  retain:
+    default: 30   # keep LPR snapshots longer (30 days vs 7)
+
+record:
+  enabled: true
+  retain:
+    days: 7
+    mode: motion
+  events:
+    retain:
+      default: 30
+      mode: active_objects
+
+###############################################################################
+# CAMERA: parking — with LPR
+###############################################################################
+cameras:
+  parking:
+    enabled: true
+
+    ffmpeg:
+      inputs:
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h264Preview_01_sub
+          roles: [detect]
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h264Preview_01_main
+          roles: [record]
+
+    detect:
+      width: 640
+      height: 360
+      fps: 5
+
+    objects:
+      track:
+        - car
+        - truck
+        - motorcycle
+        - bus
+        - license_plate    # NEW: track plates explicitly
+      filters:
+        car:
+          min_area: 1500
+          max_area: 500000
+          min_score: 0.5
+          threshold: 0.7
+        license_plate:
+          min_area: 200          # plates can be small
+          min_score: 0.4
+          threshold: 0.6
+
+    # NEW: per-camera LPR config
+    lpr:
+      enabled: true
+      threshold: 0.7              # confidence threshold for OCR
+      min_area: 200
+      enhancement: 2              # 0-10, OCR image enhancement level
+      known_plates:
+        # Plates that get special handling. The "name" field is the label.
+        # Edit secrets.yaml owner_plate / blacklist_plates and they'll auto-sync.
+        # Manual entries:
+        # owner: ["WX12345", "WY67890"]
+        # delivery: ["XX5555"]
+
+    zones:
+      parking_spot:
+        coordinates: 0.35,0.50,0.65,0.50,0.65,0.85,0.35,0.85
+        inertia: 3
+        loitering_time: 0
+        objects:
+          - car
+          - truck
+          - motorcycle
+          - bus              # keep in sync with objects.track — else a 'bus'
+                             # (large vans/SUVs are often COCO-classified as bus)
+                             # is tracked but never counts as occupying the spot
+
+    snapshots:
+      enabled: true
+      retain:
+        default: 30
+
+    record:
+      enabled: true
+      retain:
+        days: 7
+      events:
+        retain:
+          default: 30

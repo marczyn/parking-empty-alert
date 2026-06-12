@@ -1,0 +1,78 @@
+###############################################################################
+# Lovelace Dashboard — LPR overlay
+# Copy to config/homeassistant/ui-lovelace.yaml when using LPR setup.
+# Includes plate recognition history + owner/blacklist status.
+###############################################################################
+
+title: Parking + LPR
+views:
+
+  - title: Overview
+    path: overview
+    icon: mdi:car-search
+    cards:
+      - type: markdown
+        content: |
+          ## 🅿️ Parking + 🔠 License Plate Recognition
+
+      - type: glance
+        title: Status
+        entities:
+          - entity: sensor.parking_parking_spot_car
+            name: Cars in spot
+          - entity: sensor.parking_last_plate
+            name: Last plate
+          - entity: input_text.owner_plates
+            name: Owner plates
+          - entity: input_text.blacklist_plates
+            name: Blacklist
+
+      - type: picture-entity
+        entity: camera.parking
+        camera_view: live
+        show_state: false
+
+      - type: history-graph
+        title: 24h occupancy + plate detections
+        hours_to_show: 24
+        entities:
+          - sensor.parking_parking_spot_car
+          - sensor.parking_last_plate
+
+  - title: Plate History
+    path: plates
+    icon: mdi:format-list-numbered
+    cards:
+      - type: logbook
+        title: Recent plate events
+        hours_to_show: 168   # 1 week
+        entities:
+          - sensor.parking_last_plate
+      - type: entities
+        title: Quick plate management
+        entities:
+          - entity: input_text.owner_plates
+            name: My car plates (comma-separated)
+          - entity: input_text.blacklist_plates
+            name: Blacklisted plates
+
+  - title: Diagnostics
+    path: diagnostics
+    icon: mdi:chart-line
+    cards:
+      - type: entities
+        title: Automations
+        entities:
+          - automation.parking_spot_free_alert_with_lpr
+          - automation.parking_blacklist_alert
+          - automation.parking_log_all_plates
+          - automation.frigate_offline_watchdog
+      - type: iframe
+        title: CodeProject AI
+        # setup.sh substitutes DOCKER_HOST_IP with your LAN IP
+        url: http://DOCKER_HOST_IP:32168
+        aspect_ratio: '16:9'
+      - type: iframe
+        title: Frigate UI
+        url: http://DOCKER_HOST_IP:5000
+        aspect_ratio: '16:9'

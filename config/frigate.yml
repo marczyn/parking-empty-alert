@@ -1,0 +1,210 @@
+###############################################################################
+# Frigate config — Universal Reolink + Parking Spot Detection
+# Works with any Reolink model (RLC, Duo, TrackMix, Argus, E1, etc.)
+#
+# How it works:
+#   - Frigate reads 2 RTSP streams from the camera (sub for detection, main for recording)
+#   - YOLOv8n model detects cars in every frame
+#   - "parking_spot" zone defines the parking area (you draw it in UI!)
+#   - MQTT publishes state: occupied/empty → Home Assistant
+###############################################################################
+
+mqtt:
+  enabled: true
+  host: mosquitto
+  port: 1883
+  user: "{FRIGATE_MQTT_USER}"
+  password: "{FRIGATE_MQTT_PASSWORD}"
+  topic_prefix: frigate
+  # client_id is substituted to '<hostname>' by setup.sh to prevent collisions
+  # if multiple Frigate instances point at same MQTT broker
+  client_id: frigate
+
+# Object detector — CPU default (works everywhere)
+# For more performance: change to "edgetpu" (Coral) or "tensorrt" (NVIDIA)
+detectors:
+  cpu1:
+    type: cpu
+    num_threads: 3
+
+# Detection model — Frigate's bundled default (works out of the box)
+# Frigate ships with a default model. Omit `model:` to use it.
+#
+# To switch to a different model (e.g., YOLOv8n for better cars accuracy):
+#   1. Place .onnx file in ./model_cache/ (bind-mounted to /config/model_cache/)
+#   2. Uncomment + adjust the block below
+#
+# model:
+#   path: /config/model_cache/yolov8n_320x320.onnx
+#   input_tensor: nchw
+#   input_pixel_format: rgb
+#   input_dtype: float
+#   width: 320
+#   height: 320
+#   labelmap_path: /labelmap/coco-80.txt
+
+# Global FFmpeg settings
+ffmpeg:
+  # Hardware acceleration is DISABLED by default (CPU-only — works everywhere).
+  # Uncomment ONE preset below if your host has compatible hardware:
+  #
+  #   hwaccel_args: preset-vaapi       # Intel iGPU (Haswell+ Celeron/i3/i5/i7/N100)
+  #   hwaccel_args: preset-nvidia      # NVIDIA GPU + CUDA driver installed
+  #   hwaccel_args: preset-rpi-64-h264 # Raspberry Pi 4/5
+  #   hwaccel_args: preset-rkmpp       # Rockchip (Orange Pi, NanoPi)
+  #
+  # ⚠️ DO NOT uncomment preset-vaapi unless you have an Intel iGPU — Frigate
+  # will FAIL to start on AMD-only / ARM / VM hosts without VAAPI passthrough.
+  # See docs/USER_GUIDE.md §15 for hardware acceleration guide.
+
+# Global camera settings
+detect:
+  enabled: true
+  fps: 5             # 5fps is enough for a car (not a plane)
+  max_disappeared: 25 # how many frames object can "disappear" before Frigate considers it gone (5s @ 5fps)
+  stationary:
+    interval: 50     # re-check stationary object every 50 frames (10s)
+    threshold: 50    # how long until it's "stationary" = full tracking persistence
+    max_frames:
+      # 0 = forever (keep tracking until car physically leaves zone).
+      # CRITICAL for "car parked overnight 12h+" scenarios.
+      # Memory impact is bounded — tracked object dropped when max_disappeared
+      # (25 frames default) elapsed without detection. Long parking = 1 stable
+      # object, constant memory. Verified safe up to 30+ day continuous parking.
+      default: 0
+
+# Logger — 'warning' is recommended for production (less disk I/O, fewer rotated logs)
+# Switch 'default' to 'info' or 'debug' temporarily when troubleshooting
+logger:
+  default: warning
+  # logs: block removed — per-key 'warning' was identical to default. Re-add
+  # only when overriding specific loggers (e.g., frigate.object_detection: debug)
+
+# Event snapshots (cars entering/leaving)
+snapshots:
+  enabled: true
+  timestamp: true
+  bounding_box: true
+  retain:
+    default: 7        # 7-day archive
+
+# Recording — saves event videos (optional, can be disabled)
+record:
+  enabled: true
+  retain:
+    days: 3
+    mode: motion
+  events:
+    retain:
+      default: 7
+      mode: active_objects
+
+###############################################################################
+# CAMERA: parking
+# Edit for your camera Reolink:
+###############################################################################
+cameras:
+  parking:
+    enabled: true
+
+    ffmpeg:
+      inputs:
+        ###############################################################################
+        # SUB stream (low-res, 360p ~ 1 Mbps) — used for AI detection
+        # Reolink RTSP paths (vary by model) — uncomment the WORKING one:
+        ###############################################################################
+        # Most models (RLC, Duo, NVR):
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h264Preview_01_sub
+          roles: [detect]
+        # HEVC-only models (e.g., newer Argus): comment above, uncomment below:
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h265Preview_01_sub
+        #   roles: [detect]
+        # Battery cameras (Argus 3, Reolink Lumus) use only main + WiFi:
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/Preview_01_main
+        #   roles: [detect, record]
+
+        ###############################################################################
+        # MAIN stream (high-res, full HD) — used for video recording
+        ###############################################################################
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h264Preview_01_main
+          roles: [record]
+        # For HEVC:
+        # - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@CAMERA_IP_PLACEHOLDER:554/h265Preview_01_main
+        #   roles: [record]
+
+    # Sub-stream resolution (check in Reolink: Settings → Display → Sub-Stream)
+    detect:
+      width: 640
+      height: 360
+      fps: 5
+
+    # Objects to track
+    objects:
+      track:
+        - car
+        - truck
+        - motorcycle
+        - bus
+      filters:
+        car:
+          min_area: 1500       # ignore very small (noise, far away)
+          max_area: 500000     # ignore whole frame
+          min_score: 0.5
+          threshold: 0.7
+        truck:
+          min_score: 0.5
+          threshold: 0.7
+        motorcycle:
+          min_score: 0.5
+          threshold: 0.7
+        bus:
+          min_score: 0.5
+          threshold: 0.7
+
+    ###############################################################################
+    # ZONE: parking_spot
+    # Coordinates = polygon on the frame, 4 points x,y (as %).
+    #
+    # ⚠️ THIS IS A PLACEHOLDER — covers nearly the entire frame as a visual
+    # warning. You MUST replace these coordinates with your actual parking spot:
+    #
+    #   1. Open Frigate UI → Debug → Edit Zones
+    #   2. Draw polygon around your parking spot
+    #   3. Save → copy coordinates from popup
+    #   4. Replace the line below
+    #   5. docker compose restart frigate
+    #
+    # Detailed instructions in docs/INSTALLATION.md §8
+    ###############################################################################
+    zones:
+      parking_spot:
+        # ⚠️ REPLACE THESE COORDINATES — see comment above
+        coordinates: 0.01,0.01,0.99,0.01,0.99,0.99,0.01,0.99   # PLACEHOLDER: whole frame
+        inertia: 3              # object must be in zone for 3 frames (anti-blink)
+        loitering_time: 0       # instantly count as "in zone"
+        objects:
+          - car
+          - truck
+          - motorcycle
+          - bus              # keep in sync with objects.track above — else a 'bus'
+                             # (large vans/SUVs are often COCO-classified as bus) is
+                             # tracked but never counts as occupying the spot
+
+    motion:
+      mask:
+        # Optional masks (regions to IGNORE) e.g., tree blowing in wind:
+        # - 0.0,0.0,0.2,0.0,0.2,0.2,0.0,0.2
+        []
+
+    snapshots:
+      enabled: true
+      retain:
+        default: 7
+
+    record:
+      enabled: true
+      retain:
+        days: 3
+      events:
+        retain:
+          default: 7

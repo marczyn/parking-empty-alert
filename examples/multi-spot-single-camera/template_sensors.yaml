@@ -1,0 +1,52 @@
+###############################################################################
+# Template sensors for multi-spot parking
+# Add to configuration.yaml:  sensor: !include template_sensors.yaml
+###############################################################################
+
+- platform: template
+  sensors:
+
+    # ─── Total free spots count (0-5) ───
+    parking_free_count:
+      friendly_name: "Free spots"
+      unit_of_measurement: "spots"
+      icon_template: mdi:parking
+      value_template: >
+        {% set free = 0 %}
+        {% for n in range(1, 6) %}
+          {% if states('sensor.parking_lot_spot_' ~ n ~ '_car') | int(0) == 0 %}
+            {% set free = free + 1 %}
+          {% endif %}
+        {% endfor %}
+        {{ free }}
+
+    # ─── Occupancy percentage (0-100) ───
+    parking_occupancy_pct:
+      friendly_name: "Parking occupancy"
+      unit_of_measurement: "%"
+      icon_template: mdi:percent
+      value_template: >
+        {% set occupied = 0 %}
+        {% for n in range(1, 6) %}
+          {% if states('sensor.parking_lot_spot_' ~ n ~ '_car') | int(0) > 0 %}
+            {% set occupied = occupied + 1 %}
+          {% endif %}
+        {% endfor %}
+        {{ (occupied / 5 * 100) | round(0) }}
+
+    # ─── Number of leftmost free spot (0 = all taken; 1-5 = free spot number) ───
+    parking_first_free_spot:
+      friendly_name: "First free spot number"
+      icon_template: mdi:numeric
+      unit_of_measurement: ""
+      value_template: >
+        {# HA Jinja2 does not include the 'loopcontrols' extension —
+           {% break %} is unsupported. Use namespace to track first match instead.
+           Returns 0 when all spots taken (numeric, automation-safe). #}
+        {% set ns = namespace(first_free=0) %}
+        {% for n in range(1, 6) %}
+          {% if ns.first_free == 0 and states('sensor.parking_lot_spot_' ~ n ~ '_car') | int(0) == 0 %}
+            {% set ns.first_free = n %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.first_free }}
