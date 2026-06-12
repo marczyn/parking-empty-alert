@@ -7,17 +7,18 @@ Deploy parking-empty-alert on UnRAID 6.12+ using **Compose Manager** plugin and 
 ### 🅰️ Simple — pull pre-built AIO image (recommended)
 
 1. UnRAID UI → **Docker** tab → **Add Container**
-2. **Repository:** `ghcr.io/marczyn/parking-empty-alert:latest` (full) or `:latest-lite` for no-HA
-3. **Ports** mapping: 5000:5000, 8123:8123, 1883:1883
+2. **Repository:** `ghcr.io/marczyn/parking-empty-alert:latest` (full) or `ghcr.io/marczyn/parking-empty-alert-lite:latest` (no-HA)
+3. **Ports** mapping: `8090:8090`, plus `8123:8123` (full only) **or** `1883:1883` (lite only — the full image keeps MQTT in-container)
 4. **Environment variables:**
-   - `CAMERA_IP=192.168.1.100`
+   - `FRIGATE_CAMERA_IP=192.168.1.100`
    - `FRIGATE_RTSP_USER=frigate`
-   - `FRIGATE_RTSP_PASSWORD=yourpassword`
-   - `WHATSAPP_PHONE=48501234567` (full only)
-   - `WHATSAPP_APIKEY=1234567` (full only)
-5. **Apply** — UnRAID pulls image + runs it.
+   - `FRIGATE_RTSP_PASSWORD=yourpassword` (required)
+   - `WHATSAPP_PHONE=48501234567` (full only, required)
+   - `WHATSAPP_APIKEY=1234567` (full only, required)
+   - `FRIGATE_MQTT_USER=frigate` / `FRIGATE_MQTT_PASSWORD=yourmqttpassword` (lite only, required — your external HA logs in with these)
+5. **Apply** — UnRAID pulls image + runs it. The container fails fast if a required secret is missing.
 
-Open `http://<unraid-ip>:5000` (Frigate) and `http://<unraid-ip>:8123` (HA).
+Open `http://<unraid-ip>:8090` (Frigate) and `http://<unraid-ip>:8123` (HA, full only).
 
 ### 🅱️ Advanced — git clone + Compose Manager (covered below)
 

@@ -54,8 +54,8 @@ In Reolink app or web UI:
 
 ```bash
 docker run -d --name parking \
-  -p 8090:8090 -p 8123:8123 -p 1883:1883 \
-  -e CAMERA_IP=192.168.1.100 \
+  -p 8090:8090 -p 8123:8123 \
+  -e FRIGATE_CAMERA_IP=192.168.1.100 \
   -e FRIGATE_RTSP_USER=frigate \
   -e FRIGATE_RTSP_PASSWORD=yourpassword \
   -e WHATSAPP_PHONE=48501234567 \
@@ -66,25 +66,27 @@ docker run -d --name parking \
 After ~1 min boot:
 - **Frigate UI:** http://localhost:8090
 - **Home Assistant:** http://localhost:8123
-- **MQTT broker:** localhost:1883
+- MQTT broker is in-container only (not published) — Frigate + HA reach it over localhost
 
 ### 🅱️ LITE — Frigate + Mosquitto only (use your existing HA)
 
 ```bash
 docker run -d --name parking-lite \
   -p 8090:8090 -p 1883:1883 \
-  -e CAMERA_IP=192.168.1.100 \
+  -e FRIGATE_CAMERA_IP=192.168.1.100 \
   -e FRIGATE_RTSP_USER=frigate \
   -e FRIGATE_RTSP_PASSWORD=yourpassword \
+  -e FRIGATE_MQTT_USER=frigate \
+  -e FRIGATE_MQTT_PASSWORD=yourmqttpassword \
   ghcr.io/marczyn/parking-empty-alert-lite:latest
 ```
 
 After ~1 min boot:
 - **Frigate UI:** http://localhost:8090
-- **MQTT broker:** localhost:1883
+- **MQTT broker:** `<docker-host-ip>:1883` — **authentication required**
 
 In your existing HA, add:
-- MQTT integration → broker: `<docker-host-ip>:1883`
+- MQTT integration → broker: `<docker-host-ip>`, port `1883`, **username/password = `FRIGATE_MQTT_USER` / `FRIGATE_MQTT_PASSWORD`** (the values above)
 - Frigate integration → URL: `http://<docker-host-ip>:8090`
 
 ### Works on

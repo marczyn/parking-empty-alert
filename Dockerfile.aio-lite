@@ -1,14 +1,17 @@
 # syntax=docker/dockerfile:1
 ###############################################################################
 # parking-empty-alert-lite — ALL-IN-ONE
-# Frigate + Mosquitto in single container with s6-overlay.
-# Ports: 5000 (Frigate UI), 1883 (MQTT)
+# Frigate + Mosquitto in single container with s6-overlay (connect your EXISTING HA).
+# Ports: 8090 (Frigate UI), 1883 (authenticated MQTT for your external HA)
 #
 # Run:  docker run -d -p 8090:8090 -p 1883:1883 \
-#         -e CAMERA_IP=192.168.1.100 \
-#         -e RTSP_USER=frigate \
-#         -e RTSP_PASSWORD=yourpassword \
+#         -e FRIGATE_CAMERA_IP=192.168.1.100 \
+#         -e FRIGATE_RTSP_USER=frigate \
+#         -e FRIGATE_RTSP_PASSWORD=yourpassword \
+#         -e FRIGATE_MQTT_USER=frigate \
+#         -e FRIGATE_MQTT_PASSWORD=yourmqttpassword \
 #         ghcr.io/marczyn/parking-empty-alert-lite:latest
+# Then in your existing HA: MQTT broker <host>:1883 (user/pass above), Frigate URL http://<host>:8090
 ###############################################################################
 
 FROM ghcr.io/blakeblackshear/frigate:stable@sha256:1724960349dad0bd2ae8ec884171a6fd5755a4dc242a0e66cadbda9c0e85c99b
@@ -25,12 +28,15 @@ RUN apt-get update && \
 RUN sed -i 's/listen 5000;/listen 8090;/g; s/listen \[::\]:5000;/listen [::]:8090;/g' \
     /usr/local/nginx/templates/listen.gotmpl
 
-# Mosquitto config — bind the broker to LOCALHOST ONLY (the in-container Frigate +
-# Home Assistant connect over localhost), so a stray `-p 1883:1883` cannot expose an
-# anonymous broker to the LAN (safe-by-default).
+# Mosquitto config — UNLIKE the full image, the lite image has NO in-container Home
+# Assistant, so its broker must be reachable on the LAN for your EXTERNAL HA to connect.
+# It is NOT anonymous: authentication is required and the password file is generated at
+# first start from FRIGATE_MQTT_USER / FRIGATE_MQTT_PASSWORD (see the cont-init guard).
+# Keep 1883 on a trusted LAN; for untrusted networks add TLS or a reverse proxy.
 RUN cat > /etc/mosquitto/mosquitto.conf <<'EOF'
-listener 1883 127.0.0.1
-allow_anonymous true
+listener 1883
+allow_anonymous false
+password_file /etc/mosquitto/passwd
 persistence true
 persistence_location /mosquitto/data/
 log_dest stdout
@@ -43,7 +49,14 @@ EOF
 RUN mkdir -p /etc/s6-overlay/s6-rc.d/mosquitto && \
     echo "longrun" > /etc/s6-overlay/s6-rc.d/mosquitto/type && \
     cat > /etc/s6-overlay/s6-rc.d/mosquitto/run <<'EOF'
-#!/bin/sh
+#!/command/with-contenv sh
+# Generate the broker password file from the runtime MQTT creds immediately before
+# starting mosquitto. Doing it in the run script (not cont-init) guarantees the file
+# exists before the broker opens it, and with-contenv makes the docker -e env visible
+# (s6 does not pass the container env to scripts by default).
+mosquitto_passwd -c -b /etc/mosquitto/passwd "$FRIGATE_MQTT_USER" "$FRIGATE_MQTT_PASSWORD"
+chown mosquitto:mosquitto /etc/mosquitto/passwd
+chmod 600 /etc/mosquitto/passwd
 exec mosquitto -c /etc/mosquitto/mosquitto.conf
 EOF
 RUN chmod +x /etc/s6-overlay/s6-rc.d/mosquitto/run && \
@@ -63,6 +76,8 @@ mqtt:
   enabled: true
   host: localhost
   port: 1883
+  user: "{FRIGATE_MQTT_USER}"
+  password: "{FRIGATE_MQTT_PASSWORD}"
   topic_prefix: frigate
 
 detectors:
@@ -110,16 +125,25 @@ EOF
 ENV FRIGATE_CAMERA_IP=192.168.1.100
 ENV FRIGATE_RTSP_USER=frigate
 
-# Fail fast if the required RTSP secret was not provided at runtime (-e ...).
+# Fail fast on missing required secrets, and generate the broker password file from the
+# provided MQTT creds (the broker requires auth). cont-init.d runs before the mosquitto
+# service starts, so the passwd file is in place first.
 RUN mkdir -p /etc/cont-init.d && \
     cat > /etc/cont-init.d/01-require-secrets.sh <<'EOF'
-#!/bin/sh
+#!/command/with-contenv sh
+# with-contenv imports the docker -e env (s6 doesn't pass it to cont-init.d by default),
+# so these fail-fast checks see the real values. Passwd generation happens in the
+# mosquitto run script (so the file is fresh right before the broker opens it).
+set -e
 : "${FRIGATE_RTSP_PASSWORD:?must be set, e.g. docker run -e FRIGATE_RTSP_PASSWORD=...}"
+: "${FRIGATE_MQTT_USER:?must be set — the MQTT username your external Home Assistant will use}"
+: "${FRIGATE_MQTT_PASSWORD:?must be set — the MQTT password your external Home Assistant will use}"
 EOF
 RUN chmod +x /etc/cont-init.d/01-require-secrets.sh
 
-# 1883 (MQTT) is intentionally NOT exposed — the broker is localhost-only.
-EXPOSE 8090 8554 8555
+# 1883 (MQTT) IS exposed — your external Home Assistant connects to the (authenticated)
+# broker here. Keep it on a trusted LAN (or front it with TLS / a reverse proxy).
+EXPOSE 8090 1883 8554 8555
 
 LABEL org.opencontainers.image.title="parking-empty-alert-lite"
 LABEL org.opencontainers.image.description="All-in-one: Frigate + Mosquitto. Just docker run + env vars."
