@@ -138,6 +138,46 @@ printf "  Values are saved to %s and can be changed later.\n\n" "$ENV_FILE"
 printf "  Press ${BOLD}Enter${RESET} to accept a default shown in [brackets].\n"
 printf "  ${YELLOW}─────────────────────────────────────────────────────────${RESET}\n\n"
 
+# ── Network ────────────────────────────────────────────────────────────────────
+# Configure the appliance's OWN address at install time: DHCP (automatic) or a fixed
+# STATIC IP, so the camera / Home Assistant always reach it at a known address. The
+# appliance forces the NIC name to eth0 (provision.sh, net.ifnames=0), so this is
+# hypervisor-agnostic. Applied immediately (console session, so no disconnect).
+printf "${BOLD}Network${RESET} (this appliance's address)\n\n"
+_cur_ip=$(ip -4 -o addr show eth0 2>/dev/null | awk '{print $4}' | head -1 || true)
+printf "  Current: ${CYAN}%s${RESET}\n" "${_cur_ip:-none (no DHCP lease yet)}"
+printf "  1) DHCP — automatic   ${CYAN}(default)${RESET}\n"
+printf "  2) Static IP\n"
+read -r -p "Choose [1-2, default 1]: " NETMODE
+NETMODE="${NETMODE:-1}"
+if [ "$NETMODE" = "2" ]; then
+    while true; do ask "Static IP (e.g. 192.168.2.50)" STATIC_IP; validate_ip "$STATIC_IP" && break; printf "${RED}Invalid IP.${RESET}\n"; done
+    ask "Prefix length / CIDR (e.g. 24)" STATIC_CIDR "24"
+    while true; do ask "Gateway (e.g. 192.168.2.1)" STATIC_GW; validate_ip "$STATIC_GW" && break; printf "${RED}Invalid IP.${RESET}\n"; done
+    ask "DNS server (e.g. 192.168.2.1 or 1.1.1.1)" STATIC_DNS "1.1.1.1"
+    cat > /etc/network/interfaces.d/60-parking <<EOF
+auto eth0
+iface eth0 inet static
+    address ${STATIC_IP}/${STATIC_CIDR}
+    gateway ${STATIC_GW}
+    dns-nameservers ${STATIC_DNS}
+EOF
+    printf 'nameserver %s\n' "$STATIC_DNS" > /etc/resolv.conf
+    NET_SUMMARY="static ${STATIC_IP}/${STATIC_CIDR} gw ${STATIC_GW} dns ${STATIC_DNS}"
+else
+    cat > /etc/network/interfaces.d/60-parking <<'EOF'
+auto eth0
+iface eth0 inet dhcp
+EOF
+    NET_SUMMARY="DHCP (automatic)"
+fi
+printf "${YELLOW}Applying network...${RESET}\n"
+ifdown eth0 >/dev/null 2>&1 || true
+ip addr flush dev eth0 >/dev/null 2>&1 || true
+ifup eth0 >/dev/null 2>&1 || true
+_new_ip=$(ip -4 -o addr show eth0 2>/dev/null | awk '{print $4}' | head -1 || true)
+printf "  Address now: ${GREEN}%s${RESET}\n\n" "${_new_ip:-none — check cabling/DHCP}"
+
 # ── Camera ─────────────────────────────────────────────────────────────────────
 printf "${BOLD}Camera${RESET}\n\n"
 
@@ -174,12 +214,21 @@ case "$BRAND" in
     *) RTSP_PATH_MAIN="/h264Preview_01_main"; RTSP_PATH_SUB="/h264Preview_01_sub" ;;
 esac
 
-# ── Notifications ──────────────────────────────────────────────────────────────
-printf "\n${BOLD}WhatsApp notifications (CallMeBot)${RESET}\n"
-printf "  Get your API key: send ${CYAN}I allow callmebot to send me messages${RESET}\n"
-printf "  to WhatsApp contact ${CYAN}+34 644 11 11 11${RESET}, wait ~2 min for reply.\n\n"
+# ── MQTT broker (lite) ─────────────────────────────────────────────────────────
+# The lite image runs an AUTHENTICATED broker on :1883 for your EXTERNAL Home Assistant;
+# these are the credentials HA will use to connect. REQUIRED — the lite container fails
+# fast without them. (The full image's broker is localhost-only + anonymous: no creds.)
+if [ "$VARIANT" = "lite" ]; then
+    printf "\n${BOLD}MQTT broker${RESET} (your external Home Assistant connects with these)\n\n"
+    ask "MQTT username" MQTT_USER "frigate"
+    ask "MQTT password" MQTT_PASSWORD "" "yes"
+fi
 
+# ── Notifications (full only — lite alerts come from your external HA) ──────────
 if [ "$VARIANT" = "full" ]; then
+    printf "\n${BOLD}WhatsApp notifications (CallMeBot)${RESET}\n"
+    printf "  Get your API key: send ${CYAN}I allow callmebot to send me messages${RESET}\n"
+    printf "  to WhatsApp contact ${CYAN}+34 644 11 11 11${RESET}, wait ~2 min for reply.\n\n"
     while true; do
         ask "Your WhatsApp number with country code (e.g. 48501234567)" WHATSAPP_PHONE
         [[ "$WHATSAPP_PHONE" =~ ^[0-9]{8,15}$ ]] && break
@@ -191,10 +240,15 @@ fi
 # ── Confirm ────────────────────────────────────────────────────────────────────
 printf "\n${YELLOW}─────────────────────────────────────────────────────────${RESET}\n"
 printf "${BOLD}Summary${RESET}\n\n"
+printf "  Network    : %s\n" "$NET_SUMMARY"
 printf "  Camera IP  : %s\n" "$CAMERA_IP"
 printf "  RTSP user  : %s\n" "$RTSP_USER"
 printf "  RTSP pass  : %s\n" "$(echo "$RTSP_PASSWORD" | sed 's/./*/g')"
 printf "  RTSP path  : %s (detect) / %s (record)\n" "$RTSP_PATH_SUB" "$RTSP_PATH_MAIN"
+if [ "$VARIANT" = "lite" ]; then
+    printf "  MQTT user  : %s\n" "$MQTT_USER"
+    printf "  MQTT pass  : %s\n" "$(echo "$MQTT_PASSWORD" | sed 's/./*/g')"
+fi
 if [ "$VARIANT" = "full" ]; then
     printf "  WhatsApp   : +%s\n" "$WHATSAPP_PHONE"
     printf "  API key    : %s\n" "$(echo "$WHATSAPP_APIKEY" | sed 's/./*/g')"
@@ -221,6 +275,13 @@ FRIGATE_RTSP_PASSWORD=${RTSP_PASSWORD}
 FRIGATE_RTSP_PATH_MAIN=${RTSP_PATH_MAIN}
 FRIGATE_RTSP_PATH_SUB=${RTSP_PATH_SUB}
 EOF
+
+if [ "$VARIANT" = "lite" ]; then
+    cat >> "$ENV_FILE" <<EOF
+FRIGATE_MQTT_USER=${MQTT_USER}
+FRIGATE_MQTT_PASSWORD=${MQTT_PASSWORD}
+EOF
+fi
 
 if [ "$VARIANT" = "full" ]; then
     cat >> "$ENV_FILE" <<EOF
