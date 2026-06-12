@@ -7,42 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0] — 2026-06-12
 
-Security-hardening release: four adversarial review rounds (25 → 10 → 2 → 0 confirmed findings) plus supply-chain pinning and a documentation reconciliation.
+Security-hardening release (4 review rounds) + supply-chain pinning + docs sync.
 
 ### Security
-
-- **CI no longer runs untrusted fork-PR code on the self-hosted runner** — `ci.yml` jobs are gated to pushes and same-repo PRs only (`pull_request.head.repo.full_name == github.repository`), closing an RCE path on the persistent `parking` runner that also builds OVAs / pushes images. ([`ci.yml`](.github/workflows/ci.yml))
-- **MQTT broker no longer published to the LAN** — the host port is bound to `127.0.0.1` (was `0.0.0.0`). In-stack clients use the Docker bridge / their configured broker, so nothing breaks, but plaintext MQTT credentials/topics are no longer sniffable or spoofable from the network. ([`docker-compose.yml`](docker-compose.yml))
-- **`setup.sh` no longer shell-evaluates `.env`** — replaced `source .env` (a command-injection sink for a camera password like `a$(...)b`) with a literal key=value loader; `.env` values are single-quoted and RTSP credentials reject single quotes. Fixed a `.env` permission regression to `0644` after the HA-admin rewrite (now `0600`). ([`setup.sh`](scripts/setup.sh))
-- **`build-vm.yml` packer build hardened** — the version is consumed via an env var instead of `${{ }}`-expansion into the shell, and is allowlist-validated (command-injection on the self-hosted runner). ([`build-vm.yml`](.github/workflows/build-vm.yml))
-- **AIO images** — removed baked secret `ENV` defaults (`changeme` / placeholder apikey) in favor of fail-fast on missing runtime secrets; added HA login brute-force protection (`ip_ban_enabled`, `login_attempts_threshold`); escaped `sed` substitution of WhatsApp values. Frigate auth stays disabled by design (trusted-LAN appliance) with explicit warnings. ([`Dockerfile.aio-full`](Dockerfile.aio-full), [`Dockerfile.aio-lite`](Dockerfile.aio-lite))
-- **First-boot VM wizard** — replaced `eval` assignment (quote-breakout) with `printf -v`; the secrets file is created mode `0600`; the API key is masked in the summary. ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
-- **`restore.sh`** — rejects absolute / `..` traversal members **and symlink/hardlink members** before extracting a (possibly off-host) backup archive (a name-only check is blind to symlink targets that would let extraction write outside the project dir on busybox/older tar). ([`restore.sh`](scripts/restore.sh))
-- **Pre-commit secret scanner** — now inspects the staged blob and requires every secret field to still equal its template (was an easily-bypassed any-one-placeholder check); the cross-file APIKEY/phone leak filters now **anchor** the placeholder exclusion, so a real key/phone that merely contains the placeholder digits (e.g. `91234567`, `448501234567`) is flagged instead of silently dropped. ([`install-git-hooks.sh`](scripts/install-git-hooks.sh))
+- CI: self-hosted jobs gated to push/same-repo PR (fork-PR RCE).
+- Mosquitto host port bound to `127.0.0.1`.
+- `setup.sh`: stop `source .env` (command injection); quote values; `.env` `0600`.
+- `build-vm`: version via env var + allowlist-validated (injection).
+- AIO images: no baked secret defaults (fail-fast); HA login `ip_ban`; `sed` escaped.
+- Wizard: `printf -v` not `eval`; secrets file `0600`; API key masked.
+- `restore.sh`: reject absolute/`..`/symlink tar members.
+- Pre-commit hook: scan staged blob, per-field template assertion, anchored leak filters.
+- All images pinned `@sha256`; all Actions pinned to commit SHAs.
 
 ### Fixed
-
-- **Home Assistant could not reach the MQTT broker on the recommended Linux deployment** — HA runs `network_mode: host`, which cannot resolve the Docker service name `mosquitto`, so the whole alert pipeline was silently dead. The broker host is now an env var (`MQTT_BROKER`, default `127.0.0.1` = the loopback-published broker); the Docker Desktop override uses `host.docker.internal`. ([`configuration.yaml`](config/homeassistant/configuration.yaml), [`docker-compose.macwin.yml`](docker-compose.macwin.yml))
-- **"Frigate recovered" alert could never fire on an active scene** — combining `from/to` with `for: 1 min` on the constantly-churning motion sensor meant the timer was always cancelled, so the alert was dropped and the outage flag stuck `on`. Removed the `for:` (fires the instant the sensor returns to a real state); the flag also resets on HA start (`initial: off`) so it can't carry over a restart. ([`automations.yaml`](config/homeassistant/automations.yaml), [`configuration.yaml`](config/homeassistant/configuration.yaml))
-- **LPR example** `parking_spot` zone now counts `bus` (matched the base-config fix). ([`frigate.lpr.yml`](examples/lpr/frigate.lpr.yml))
-- **A CRLF `.env` no longer corrupts every value** — `setup.sh`'s reader strips a trailing `\r`; added `.gitattributes` (LF for text) and normalized `.env.example` to LF. ([`setup.sh`](scripts/setup.sh), [`.gitattributes`](.gitattributes))
-- **First-boot wizard (cloud-init path)** now pulls the image explicitly (with abort) and `finalize()` requires the **container to stay continuously Running across a settle window** before marking the appliance configured — `.State.Running` is true at s6 PID-1 start (before cont-init/services), so a single observation didn't prove it stayed up, and a crash seconds later (with `--rm`) could still lock in a broken appliance behind "Setup complete". ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
-- **Older release images stay pullable** — each per-arch child now carries an immutable `:<release>-amd64/-arm64` tag, so the untagged-version cleanup can no longer delete the platform children of an older `:v<release>` manifest list (which the OVA pins to). ([`docker-publish.yml`](.github/workflows/docker-publish.yml))
-- **All-in-one images now boot and read runtime secrets correctly** — s6 does not pass the container (`-e`) environment to `cont-init.d` scripts by default, so they now use the `#!/command/with-contenv sh` shebang. Without it the **full image failed to start** (its required-secret fail-fast saw the vars as unset) and its WhatsApp phone/apikey substitution silently baked in placeholder values; verified end-to-end by building and running both images (full boots + substitutes the real values; lite broker authenticates). ([`Dockerfile.aio-full`](Dockerfile.aio-full), [`Dockerfile.aio-lite`](Dockerfile.aio-lite))
-
-- **First-boot wizard no longer locks in a broken appliance** — a failed image pull / service start now aborts (and retries next boot) instead of printing "Setup complete" and writing the `configured` sentinel. ([`parking-wizard.sh`](vm/files/parking-wizard.sh))
-- **No more false "Frigate recovered" alert on every HA restart** — the recovered watchdog fires only after a real >10-min outage (tracked via an `input_boolean`); both watchdogs also catch the `unknown` state. ([`automations.yaml`](config/homeassistant/automations.yaml), [`configuration.yaml`](config/homeassistant/configuration.yaml))
-- **Dashboard no longer reports "Spot OCCUPIED" when detection is offline** — added an unavailable/unknown card and tightened the OCCUPIED condition. ([`ui-lovelace.yaml`](config/homeassistant/ui-lovelace.yaml))
-- **A `bus` in the spot now counts as occupied** — the `parking_spot` zone was missing `bus` (tracked but never occupying). ([`frigate.yml`](config/frigate.yml))
-- **Package cleanup** only runs after a successful build, and its keep-count default (2) now matches on both the manual and automated paths. ([`cleanup-old-packages.yml`](.github/workflows/cleanup-old-packages.yml))
+- AIO cont-init uses `#!/command/with-contenv sh` — without it the full image failed to boot and used placeholder WhatsApp creds.
+- HA couldn't reach MQTT on host-net Linux → broker host via `MQTT_BROKER` (default `127.0.0.1`).
+- Recovered watchdog no longer mis-fires (dropped `for:`; flag `initial: off`); watchdogs catch `unknown`.
+- Lovelace: no "OCCUPIED" when sensor unavailable/unknown.
+- `frigate.yml` + LPR example: `bus` counts as occupying the spot.
+- Wizard (cloud-init): explicit pull + sustained-liveness gate before sentinel.
+- CRLF `.env` no longer corrupts values (`load_env` strips CR; `.gitattributes`).
+- Package cleanup runs only after a successful build; keep default `2`.
 
 ### Changed
-
-- **VM/OVA pins the app image** to the immutable `:v<version>` tag instead of mutable `:latest`, so each appliance runs exactly the validated image. ([`parking.pkr.hcl`](vm/parking.pkr.hcl))
-- **Dependabot** batches action/image bumps into grouped weekly PRs and routes major HA/Frigate jumps to manual review; removed the dead `VERSION_CLEAN` env var. ([`dependabot.yml`](.github/dependabot.yml), [`build-vm.yml`](.github/workflows/build-vm.yml))
-- **Package-cleanup jobs run on `ubuntu-latest`** (was the persistent self-hosted runner) — the API-only `delete-package-versions` step no longer executes on the build host. ([`cleanup-old-packages.yml`](.github/workflows/cleanup-old-packages.yml))
-- **Lite image MQTT broker is now authenticated and LAN-reachable** — the lite image has no in-container HA, so its broker must be reachable for your external HA; the round-1 localhost-only binding had silently broken that documented use case. The broker now requires auth (password generated at first start from `FRIGATE_MQTT_USER` / `FRIGATE_MQTT_PASSWORD`) and publishes 1883. The full image's broker stays in-container only. ([`Dockerfile.aio-lite`](Dockerfile.aio-lite))
-- **Documentation reconciled with the hardening** — `docker run` examples and the env table now use the image's actual `FRIGATE_*` variable names (the old non-prefixed names never reached the image and broke once fail-fast removed the placeholder defaults); the `changeme`/placeholder "defaults" are documented as **required**; the full image no longer publishes 1883; NAS guides corrected to Frigate port 8090. ([`README.md`](README.md), [`docs/QUICKSTART.md`](docs/QUICKSTART.md), [`docs/nas/`](docs/nas/))
+- Lite broker: authenticated + published `1883` (`FRIGATE_MQTT_USER/PASSWORD`); full stays in-container.
+- VM/OVA pins app image to `:v<version>`.
+- docker-publish tags per-arch children `:<release>-amd64/-arm64` (cleanup-safe).
+- Package-cleanup on `ubuntu-latest`; dependabot grouped; removed dead `VERSION_CLEAN`.
+- Docs: `docker run` uses real `FRIGATE_*` names; secrets required; Frigate UI `8090`.
 
 ---
 
