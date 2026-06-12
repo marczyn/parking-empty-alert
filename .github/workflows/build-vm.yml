@@ -47,7 +47,7 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          V="$VERSION"   # consume the env var in-shell, never ${{ }} template-expand untrusted input
+          V="$VERSION"   # consume the env var in-shell; never template-expand untrusted input into the command
           # Strip leading 'v' if present
           V="${V#v}"
           # Allowlist: only version-safe chars, so the value can never carry shell metacharacters
@@ -110,7 +110,7 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          V="$VERSION"   # consume the env var in-shell, never ${{ }} template-expand untrusted input
+          V="$VERSION"   # consume the env var in-shell; never template-expand untrusted input into the command
           V="${V#v}"
           case "$V" in
             ''|*[!A-Za-z0-9._-]*) echo "::error::invalid version '$V' (allowed: A-Za-z0-9 . _ -)"; exit 1 ;;
@@ -170,7 +170,7 @@ jobs:
       - name: Resolve version
         id: version
         run: |
-          V="$VERSION"   # consume the env var in-shell, never ${{ }} template-expand untrusted input
+          V="$VERSION"   # consume the env var in-shell; never template-expand untrusted input into the command
           V="${V#v}"
           case "$V" in
             ''|*[!A-Za-z0-9._-]*) echo "::error::invalid version '$V' (allowed: A-Za-z0-9 . _ -)"; exit 1 ;;

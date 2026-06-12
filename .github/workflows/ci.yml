@@ -176,3 +176,17 @@ jobs:
           " || { echo "✗ $CFG FAILED"; exit 1; }
           done
           echo "✓ All Frigate configs valid"
+
+  actionlint:
+    name: Lint GitHub workflows
+    # GitHub-schema validation of the workflow files. PyYAML (the validate job) accepts
+    # files that GitHub itself rejects — e.g. a literal `${{ }}` inside a run: comment,
+    # which is a fatal parse error that silently disables the workflow. actionlint catches it.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, linux, x64, parking]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: actionlint
+        # Self-hosted labels are declared in .github/actionlint.yaml. Run shellcheck-less
+        # to avoid style noise; -shellcheck= disables the embedded shellcheck pass.
+        run: docker run --rm -v "$PWD:/repo:ro" -w /repo rhysd/actionlint:1.7.7 -color -shellcheck=
