@@ -107,34 +107,62 @@ WantedBy=multi-user.target
 EOF
 sudo systemctl enable regenerate-ssh-host-keys.service
 
-# ── 5. Network portability: remove the build-time NIC pin ──────────────────────
+# ── 5. Portability: stable NIC name, NetworkManager DHCP, VMware storage drivers ──
 # Build-time cloud-init wrote a network profile MATCHED TO THIS BUILD VM's NIC (its
 # kernel name / MAC). On a different hypervisor (Synology VMM / ESXi) the NIC has a
 # different name+MAC → that pinned profile never matches → no DHCP → no IP → the whole
-# appliance is dead (no image pull, no services, no SSH). Make the shipped image fully
-# portable: (1) force a STABLE interface name (eth0) on every hypervisor by disabling
-# predictable naming, (2) ship a plain "eth0 DHCP" profile that always matches, (3) stop
-# cloud-init from re-pinning the network. ifupdown + isc-dhcp-client (DHCP also writes
-# resolv.conf, so DNS works) are the deterministic single network manager.
-# NB: nothing here restarts networking — changes take effect on the shipped image's
-# first boot only, so the live Packer SSH session survives.
-echo "==> Hardening network for cross-hypervisor portability..."
-# ifupdown + isc-dhcp-client ship on the Debian cloud image already; only fetch lists
-# (removed by the cleanup section above) + install if something is actually missing.
-if ! dpkg -s ifupdown isc-dhcp-client >/dev/null 2>&1; then
+# appliance is dead. Make the shipped image fully portable:
+# (1) force a STABLE interface name (eth0) on every hypervisor (disable predictable naming),
+# (2) let the NetworkManager the cloud image ALREADY ships own eth0 via a persistent DHCP
+#     keyfile — adding a second manager (ifupdown) only made NM mark eth0 "unmanaged" while
+#     networking.service failed to raise the link, leaving the appliance with no DHCP,
+# (3) stop cloud-init from re-pinning the network,
+# (4) bake VMware storage drivers into the initramfs — the Debian *cloud* kernel ships a
+#     virtio-only initramfs, so on ESXi/Workstation the root disk is invisible and the
+#     appliance drops to an initramfs shell ("PARTUUID … does not exist").
+# NB: nothing here restarts networking — changes take effect on the shipped image's first
+# boot only, so the live Packer SSH session survives.
+echo "==> Hardening for cross-hypervisor portability (eth0, NetworkManager, storage)..."
+
+# NetworkManager ships on the Debian cloud image; install only if somehow absent.
+if ! dpkg -s network-manager >/dev/null 2>&1; then
     sudo apt-get update -qq
-    sudo apt-get install -y --no-install-recommends ifupdown isc-dhcp-client
+    sudo apt-get install -y --no-install-recommends network-manager
 fi
+
 sudo sed -i 's/\(GRUB_CMDLINE_LINUX="[^"]*\)"/\1 net.ifnames=0 biosdevname=0"/' /etc/default/grub
 sudo update-grub
-sudo rm -f /etc/netplan/50-cloud-init.yaml /etc/network/interfaces.d/50-cloud-init
-sudo tee /etc/network/interfaces.d/60-parking >/dev/null <<'EOF'
-auto eth0
-iface eth0 inet dhcp
+
+# Hand eth0 to NetworkManager: remove ifupdown/netplan profiles (their presence makes NM
+# treat eth0 as unmanaged), then ship a persistent NM keyfile that DHCPs eth0 on every boot.
+sudo rm -f /etc/netplan/50-cloud-init.yaml \
+           /etc/network/interfaces.d/50-cloud-init \
+           /etc/network/interfaces.d/60-parking
+sudo install -d -m 0755 /etc/NetworkManager/system-connections
+sudo tee /etc/NetworkManager/system-connections/eth0.nmconnection >/dev/null <<'EOF'
+[connection]
+id=eth0
+type=ethernet
+interface-name=eth0
+autoconnect=true
+autoconnect-priority=100
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
 EOF
+sudo chmod 600 /etc/NetworkManager/system-connections/eth0.nmconnection
+
 echo 'network: {config: disabled}' | sudo tee /etc/cloud/cloud.cfg.d/99-disable-network.cfg >/dev/null
-sudo systemctl enable networking 2>/dev/null || true
-sudo systemctl disable systemd-networkd.service systemd-networkd.socket 2>/dev/null || true
+sudo systemctl enable NetworkManager 2>/dev/null || true
+sudo systemctl disable networking systemd-networkd.service systemd-networkd.socket 2>/dev/null || true
+
+# (4) Storage drivers for non-virtio hypervisors (VMware LSI Logic / LSI SAS / PVSCSI / SATA).
+echo "==> Baking VMware storage drivers into the initramfs..."
+printf 'mptspi\nmptsas\nvmw_pvscsi\nahci\nsd_mod\n' | sudo tee -a /etc/initramfs-tools/modules >/dev/null
+sudo update-initramfs -u
 
 # Remove cloud-init seed data so it doesn't run again
 sudo cloud-init clean --logs

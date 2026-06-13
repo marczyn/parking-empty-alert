@@ -155,26 +155,22 @@ if [ "$NETMODE" = "2" ]; then
     ask "Prefix length / CIDR (e.g. 24)" STATIC_CIDR "24"
     while true; do ask "Gateway (e.g. 192.168.2.1)" STATIC_GW; validate_ip "$STATIC_GW" && break; printf "${RED}Invalid IP.${RESET}\n"; done
     ask "DNS server (e.g. 192.168.2.1 or 1.1.1.1)" STATIC_DNS "1.1.1.1"
-    cat > /etc/network/interfaces.d/60-parking <<EOF
-auto eth0
-iface eth0 inet static
-    address ${STATIC_IP}/${STATIC_CIDR}
-    gateway ${STATIC_GW}
-    dns-nameservers ${STATIC_DNS}
-EOF
-    printf 'nameserver %s\n' "$STATIC_DNS" > /etc/resolv.conf
+    # eth0 is owned by NetworkManager (see provision.sh); configure its keyfile profile.
+    nmcli con mod eth0 ipv4.method manual \
+        ipv4.addresses "${STATIC_IP}/${STATIC_CIDR}" \
+        ipv4.gateway "${STATIC_GW}" \
+        ipv4.dns "${STATIC_DNS}" >/dev/null 2>&1 || true
     NET_SUMMARY="static ${STATIC_IP}/${STATIC_CIDR} gw ${STATIC_GW} dns ${STATIC_DNS}"
 else
-    cat > /etc/network/interfaces.d/60-parking <<'EOF'
-auto eth0
-iface eth0 inet dhcp
-EOF
+    # Clear any prior static settings and return eth0 to DHCP.
+    nmcli con mod eth0 ipv4.method auto \
+        ipv4.addresses "" ipv4.gateway "" ipv4.dns "" >/dev/null 2>&1 || true
     NET_SUMMARY="DHCP (automatic)"
 fi
 printf "${YELLOW}Applying network...${RESET}\n"
-ifdown eth0 >/dev/null 2>&1 || true
-ip addr flush dev eth0 >/dev/null 2>&1 || true
-ifup eth0 >/dev/null 2>&1 || true
+# Reactivate eth0 so the new addressing takes effect (nmcli con up blocks until the
+# DHCP lease / static address is live, so the read below reflects the result).
+nmcli con up eth0 >/dev/null 2>&1 || true
 _new_ip=$(ip -4 -o addr show eth0 2>/dev/null | awk '{print $4}' | head -1 || true)
 printf "  Address now: ${GREEN}%s${RESET}\n\n" "${_new_ip:-none — check cabling/DHCP}"
 
