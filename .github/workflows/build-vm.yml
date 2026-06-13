@@ -108,6 +108,15 @@ jobs:
           path: output/ova/parking-empty-alert-full-${{ steps.version.outputs.version }}.ova
           retention-days: 7
 
+      # Packer's qcow2 (the source the OVA is built from) — ships as a ready-to-run image
+      # for QEMU/KVM/Proxmox/libvirt, which don't import OVA natively.
+      - name: Upload full qcow2 as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: qcow2-full
+          path: output/full/parking-empty-alert-full-${{ steps.version.outputs.version }}.qcow2
+          retention-days: 7
+
   build-lite:
     name: Build lite OVA
     needs: check-runner
@@ -177,6 +186,15 @@ jobs:
           path: output/ova/parking-empty-alert-lite-${{ steps.version.outputs.version }}.ova
           retention-days: 7
 
+      # Packer's qcow2 (the source the OVA is built from) — ships as a ready-to-run image
+      # for QEMU/KVM/Proxmox/libvirt, which don't import OVA natively.
+      - name: Upload lite qcow2 as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: qcow2-lite
+          path: output/lite/parking-empty-alert-lite-${{ steps.version.outputs.version }}.qcow2
+          retention-days: 7
+
   attach-to-release:
     name: Attach OVAs to release
     needs: [build-full, build-lite]
@@ -203,11 +221,23 @@ jobs:
           name: ova-lite
           path: output/ova
 
-      - name: Upload OVAs to release
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: qcow2-full
+          path: output/qcow2
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: qcow2-lite
+          path: output/qcow2
+
+      - name: Upload OVAs + qcow2 to release
         run: |
           gh release upload "$RELEASE_TAG" \
             "output/ova/parking-empty-alert-full-${VER}.ova" \
             "output/ova/parking-empty-alert-lite-${VER}.ova" \
+            "output/qcow2/parking-empty-alert-full-${VER}.qcow2" \
+            "output/qcow2/parking-empty-alert-lite-${VER}.qcow2" \
             --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
