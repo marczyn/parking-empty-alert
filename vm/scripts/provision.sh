@@ -170,11 +170,26 @@ sudo apt-get update -qq
 sudo apt-get install -y --no-install-recommends linux-image-amd64
 echo 'MODULES=most' | sudo tee /etc/initramfs-tools/conf.d/00-most >/dev/null
 sudo update-initramfs -u -k all
-# Remove the cloud kernel (meta + versioned) so only the generic kernel remains / is default.
-# '|| true': apt warns when removing the currently-running (cloud) kernel but still succeeds;
-# the files persist until the build VM shuts down, so the live build is unaffected.
-sudo apt-get purge -y 'linux-image-cloud-amd64' 'linux-image-*-cloud-amd64' 2>/dev/null || true
+
+# Make GRUB boot the generic kernel instead of the cloud one. The cloud kernel is the
+# *running* kernel during the Packer build, so `apt purge` of it hits an interactive
+# "Abort kernel removal?" debconf prompt that DEFAULTS TO ABORT under a non-interactive
+# frontend — leaving the cloud kernel installed and (being listed first) the GRUB default.
+# Preseed that prompt to not-abort, purge, THEN unconditionally delete any leftover cloud
+# kernel boot artifacts so update-grub physically cannot offer it. The build VM keeps
+# running off the already-loaded kernel in RAM and never reboots before shutdown.
+RUNNING_KERNEL="$(uname -r)"   # e.g. 6.1.0-49-cloud-amd64
+echo "linux-image-${RUNNING_KERNEL} linux-image-${RUNNING_KERNEL}/prerm/removing-running-kernel-${RUNNING_KERNEL} boolean false" \
+  | sudo debconf-set-selections
+sudo DEBIAN_FRONTEND=noninteractive apt-get purge -y "linux-image-${RUNNING_KERNEL}" linux-image-cloud-amd64 2>/dev/null || true
+sudo rm -f /boot/vmlinuz-*-cloud-amd64 /boot/initrd.img-*-cloud-amd64 \
+           /boot/config-*-cloud-amd64 /boot/System.map-*-cloud-amd64
 sudo update-grub
+# Fail the build loudly if the generic kernel somehow isn't the only one GRUB will boot.
+if grep -q 'cloud-amd64' /boot/grub/grub.cfg; then
+    echo "ERROR: cloud kernel still referenced in grub.cfg" >&2; exit 1
+fi
+echo "==> GRUB now boots the generic kernel: $(ls /boot/vmlinuz-* | grep -v cloud)"
 
 # Remove cloud-init seed data so it doesn't run again
 sudo cloud-init clean --logs
