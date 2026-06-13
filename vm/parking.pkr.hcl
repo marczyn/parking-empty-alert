@@ -21,7 +21,16 @@ variable "variant" {
 
 variable "version" {
   type    = string
-  default = "1.1.0"
+  default = "1.2.0"
+}
+
+# The published app image tag baked INTO the appliance (ghcr `:v<app_version>`).
+# Decoupled from the appliance `version` so the OVA can iterate (e.g. packaging /
+# network fixes) without requiring a brand-new app image release — it bakes a
+# known-good, already-published image instead of a tag that may not exist yet.
+variable "app_version" {
+  type    = string
+  default = "1.2.0"
 }
 
 variable "disk_size" {
@@ -58,7 +67,7 @@ locals {
   # shipped appliance runs exactly the image it was built/validated against. The
   # docker-publish workflow tags images ":v<release>" (e.g. v1.0.2) and build-vm passes
   # the v-stripped version, so prepend 'v' here to match the published tag.
-  image_name = var.variant == "full" ? "ghcr.io/marczyn/parking-empty-alert:v${var.version}" : "ghcr.io/marczyn/parking-empty-alert-lite:v${var.version}"
+  image_name = var.variant == "full" ? "ghcr.io/marczyn/parking-empty-alert:v${var.app_version}" : "ghcr.io/marczyn/parking-empty-alert-lite:v${var.app_version}"
 }
 
 # ── Source ─────────────────────────────────────────────────────────────────────

@@ -88,16 +88,33 @@ jobs:
           # into the command line (command-injection sink). Already allowlist-validated above.
           VER: ${{ steps.version.outputs.version }}
         run: |
-          packer build \
-            -var "variant=full" \
-            -var "version=$VER" \
-            vm/parking.pkr.hcl
+          # Retry: packer fetches the Debian checksum/image from cloud.debian.org each run
+          # and that mirror intermittently TLS-handshake-times-out. Retry the whole build.
+          for attempt in 1 2 3 4 5; do
+            echo "::group::packer build full (attempt $attempt)"
+            if packer build -var "variant=full" -var "version=$VER" vm/parking.pkr.hcl; then
+              echo "::endgroup::"; exit 0
+            fi
+            echo "::endgroup::"
+            echo "attempt $attempt failed (often the flaky Debian mirror) — retrying..."
+            sleep 15
+          done
+          echo "::error::packer build (full) failed after 5 attempts"; exit 1
 
       - name: Upload full OVA as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ova-full
           path: output/ova/parking-empty-alert-full-${{ steps.version.outputs.version }}.ova
+          retention-days: 7
+
+      # Packer's qcow2 (the source the OVA is built from) — ships as a ready-to-run image
+      # for QEMU/KVM/Proxmox/libvirt, which don't import OVA natively.
+      - name: Upload full qcow2 as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: qcow2-full
+          path: output/full/parking-empty-alert-full-${{ steps.version.outputs.version }}.qcow2
           retention-days: 7
 
   build-lite:
@@ -149,16 +166,33 @@ jobs:
           # into the command line (command-injection sink). Already allowlist-validated above.
           VER: ${{ steps.version.outputs.version }}
         run: |
-          packer build \
-            -var "variant=lite" \
-            -var "version=$VER" \
-            vm/parking.pkr.hcl
+          # Retry: packer fetches the Debian checksum/image from cloud.debian.org each run
+          # and that mirror intermittently TLS-handshake-times-out. Retry the whole build.
+          for attempt in 1 2 3 4 5; do
+            echo "::group::packer build lite (attempt $attempt)"
+            if packer build -var "variant=lite" -var "version=$VER" vm/parking.pkr.hcl; then
+              echo "::endgroup::"; exit 0
+            fi
+            echo "::endgroup::"
+            echo "attempt $attempt failed (often the flaky Debian mirror) — retrying..."
+            sleep 15
+          done
+          echo "::error::packer build (lite) failed after 5 attempts"; exit 1
 
       - name: Upload lite OVA as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ova-lite
           path: output/ova/parking-empty-alert-lite-${{ steps.version.outputs.version }}.ova
+          retention-days: 7
+
+      # Packer's qcow2 (the source the OVA is built from) — ships as a ready-to-run image
+      # for QEMU/KVM/Proxmox/libvirt, which don't import OVA natively.
+      - name: Upload lite qcow2 as artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: qcow2-lite
+          path: output/lite/parking-empty-alert-lite-${{ steps.version.outputs.version }}.qcow2
           retention-days: 7
 
   attach-to-release:
@@ -187,11 +221,23 @@ jobs:
           name: ova-lite
           path: output/ova
 
-      - name: Upload OVAs to release
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: qcow2-full
+          path: output/qcow2
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: qcow2-lite
+          path: output/qcow2
+
+      - name: Upload OVAs + qcow2 to release
         run: |
           gh release upload "$RELEASE_TAG" \
             "output/ova/parking-empty-alert-full-${VER}.ova" \
             "output/ova/parking-empty-alert-lite-${VER}.ova" \
+            "output/qcow2/parking-empty-alert-full-${VER}.qcow2" \
+            "output/qcow2/parking-empty-alert-lite-${VER}.qcow2" \
             --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

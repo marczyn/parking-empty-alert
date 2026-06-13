@@ -92,14 +92,27 @@ finalize() {
     return 1
 }
 
+# The application image is BAKED INTO the appliance at build time, so first boot runs
+# fully offline. Only contact the registry if the image is somehow absent locally (e.g.
+# a manual wipe). A registry failure is fatal ONLY when there is no local image to fall
+# back on — a self-contained appliance is never stranded by a transient network hiccup.
+ensure_image() {
+    if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+        printf "${GREEN}Image present locally (baked into appliance) — no download needed.${RESET}\n"
+        return 0
+    fi
+    printf "${YELLOW}Image not found locally — pulling %s...${RESET}\n" "$IMAGE_NAME"
+    docker pull "$IMAGE_NAME"
+}
+
 # ── Check for pre-populated env file (cloud-init / automated deploy) ──────────
 if [ -f "$ENV_FILE" ]; then
     echo ""
     printf "${GREEN}[parking]${RESET} Configuration found at %s — skipping wizard.\n" "$ENV_FILE"
-    # Pull explicitly (with abort) like the interactive path — don't rely on the
-    # service's inline pull, so a failed pull retries next boot instead of locking in.
-    if ! docker pull "$IMAGE_NAME"; then
-        printf "${RED}ERROR: Docker image pull failed — check network/registry, then reboot to retry.${RESET}\n"
+    # Use the baked-in image (offline). Only the absent-AND-pull-failed case aborts so the
+    # wizard retries next boot instead of locking in a broken appliance.
+    if ! ensure_image; then
+        printf "${RED}ERROR: image missing and pull failed — check network/registry, then reboot to retry.${RESET}\n"
         exit 1
     fi
     finalize || exit 1
@@ -125,6 +138,42 @@ printf "  Values are saved to %s and can be changed later.\n\n" "$ENV_FILE"
 printf "  Press ${BOLD}Enter${RESET} to accept a default shown in [brackets].\n"
 printf "  ${YELLOW}─────────────────────────────────────────────────────────${RESET}\n\n"
 
+# ── Network ────────────────────────────────────────────────────────────────────
+# Configure the appliance's OWN address at install time: DHCP (automatic) or a fixed
+# STATIC IP, so the camera / Home Assistant always reach it at a known address. The
+# appliance forces the NIC name to eth0 (provision.sh, net.ifnames=0), so this is
+# hypervisor-agnostic. Applied immediately (console session, so no disconnect).
+printf "${BOLD}Network${RESET} (this appliance's address)\n\n"
+_cur_ip=$(ip -4 -o addr show eth0 2>/dev/null | awk '{print $4}' | head -1 || true)
+printf "  Current: ${CYAN}%s${RESET}\n" "${_cur_ip:-none (no DHCP lease yet)}"
+printf "  1) DHCP — automatic   ${CYAN}(default)${RESET}\n"
+printf "  2) Static IP\n"
+read -r -p "Choose [1-2, default 1]: " NETMODE
+NETMODE="${NETMODE:-1}"
+if [ "$NETMODE" = "2" ]; then
+    while true; do ask "Static IP (e.g. 192.168.2.50)" STATIC_IP; validate_ip "$STATIC_IP" && break; printf "${RED}Invalid IP.${RESET}\n"; done
+    ask "Prefix length / CIDR (e.g. 24)" STATIC_CIDR "24"
+    while true; do ask "Gateway (e.g. 192.168.2.1)" STATIC_GW; validate_ip "$STATIC_GW" && break; printf "${RED}Invalid IP.${RESET}\n"; done
+    ask "DNS server (e.g. 192.168.2.1 or 1.1.1.1)" STATIC_DNS "1.1.1.1"
+    # eth0 is owned by NetworkManager (see provision.sh); configure its keyfile profile.
+    nmcli con mod eth0 ipv4.method manual \
+        ipv4.addresses "${STATIC_IP}/${STATIC_CIDR}" \
+        ipv4.gateway "${STATIC_GW}" \
+        ipv4.dns "${STATIC_DNS}" >/dev/null 2>&1 || true
+    NET_SUMMARY="static ${STATIC_IP}/${STATIC_CIDR} gw ${STATIC_GW} dns ${STATIC_DNS}"
+else
+    # Clear any prior static settings and return eth0 to DHCP.
+    nmcli con mod eth0 ipv4.method auto \
+        ipv4.addresses "" ipv4.gateway "" ipv4.dns "" >/dev/null 2>&1 || true
+    NET_SUMMARY="DHCP (automatic)"
+fi
+printf "${YELLOW}Applying network...${RESET}\n"
+# Reactivate eth0 so the new addressing takes effect (nmcli con up blocks until the
+# DHCP lease / static address is live, so the read below reflects the result).
+nmcli con up eth0 >/dev/null 2>&1 || true
+_new_ip=$(ip -4 -o addr show eth0 2>/dev/null | awk '{print $4}' | head -1 || true)
+printf "  Address now: ${GREEN}%s${RESET}\n\n" "${_new_ip:-none — check cabling/DHCP}"
+
 # ── Camera ─────────────────────────────────────────────────────────────────────
 printf "${BOLD}Camera${RESET}\n\n"
 
@@ -137,12 +186,45 @@ done
 ask "RTSP username" RTSP_USER "frigate"
 ask "RTSP password" RTSP_PASSWORD "" "yes"
 
-# ── Notifications ──────────────────────────────────────────────────────────────
-printf "\n${BOLD}WhatsApp notifications (CallMeBot)${RESET}\n"
-printf "  Get your API key: send ${CYAN}I allow callmebot to send me messages${RESET}\n"
-printf "  to WhatsApp contact ${CYAN}+34 644 11 11 11${RESET}, wait ~2 min for reply.\n\n"
+# ── Camera brand → RTSP stream path ────────────────────────────────────────────
+# The RTSP URL path differs per manufacturer, so the appliance works with ANY camera,
+# not only Reolink. Picking a brand sets the detect (sub / low-res) and record (main /
+# high-res) stream paths; "Other" lets you type them. Port 554 is assumed (standard).
+printf "\n${BOLD}Camera brand${RESET} (sets the RTSP stream path)\n"
+printf "  1) Reolink        ${CYAN}(default)${RESET}\n"
+printf "  2) Hikvision\n"
+printf "  3) Dahua / Amcrest\n"
+printf "  4) TP-Link Tapo\n"
+printf "  5) Other / custom path\n"
+read -r -p "Choose [1-5, default 1]: " BRAND
+BRAND="${BRAND:-1}"
+case "$BRAND" in
+    2) RTSP_PATH_MAIN="/Streaming/Channels/101"; RTSP_PATH_SUB="/Streaming/Channels/102" ;;
+    3) RTSP_PATH_MAIN="/cam/realmonitor?channel=1&subtype=0"; RTSP_PATH_SUB="/cam/realmonitor?channel=1&subtype=1" ;;
+    4) RTSP_PATH_MAIN="/stream1"; RTSP_PATH_SUB="/stream2" ;;
+    5)
+        printf "  ${YELLOW}Enter the stream path AFTER host:554, including the leading '/'.${RESET}\n"
+        ask "Main (record, high-res) path, e.g. /live/main" RTSP_PATH_MAIN
+        ask "Sub (detect, low-res) path, e.g. /live/sub"    RTSP_PATH_SUB "$RTSP_PATH_MAIN"
+        ;;
+    *) RTSP_PATH_MAIN="/h264Preview_01_main"; RTSP_PATH_SUB="/h264Preview_01_sub" ;;
+esac
 
+# ── MQTT broker (lite) ─────────────────────────────────────────────────────────
+# The lite image runs an AUTHENTICATED broker on :1883 for your EXTERNAL Home Assistant;
+# these are the credentials HA will use to connect. REQUIRED — the lite container fails
+# fast without them. (The full image's broker is localhost-only + anonymous: no creds.)
+if [ "$VARIANT" = "lite" ]; then
+    printf "\n${BOLD}MQTT broker${RESET} (your external Home Assistant connects with these)\n\n"
+    ask "MQTT username" MQTT_USER "frigate"
+    ask "MQTT password" MQTT_PASSWORD "" "yes"
+fi
+
+# ── Notifications (full only — lite alerts come from your external HA) ──────────
 if [ "$VARIANT" = "full" ]; then
+    printf "\n${BOLD}WhatsApp notifications (CallMeBot)${RESET}\n"
+    printf "  Get your API key: send ${CYAN}I allow callmebot to send me messages${RESET}\n"
+    printf "  to WhatsApp contact ${CYAN}+34 644 11 11 11${RESET}, wait ~2 min for reply.\n\n"
     while true; do
         ask "Your WhatsApp number with country code (e.g. 48501234567)" WHATSAPP_PHONE
         [[ "$WHATSAPP_PHONE" =~ ^[0-9]{8,15}$ ]] && break
@@ -154,9 +236,15 @@ fi
 # ── Confirm ────────────────────────────────────────────────────────────────────
 printf "\n${YELLOW}─────────────────────────────────────────────────────────${RESET}\n"
 printf "${BOLD}Summary${RESET}\n\n"
+printf "  Network    : %s\n" "$NET_SUMMARY"
 printf "  Camera IP  : %s\n" "$CAMERA_IP"
 printf "  RTSP user  : %s\n" "$RTSP_USER"
 printf "  RTSP pass  : %s\n" "$(echo "$RTSP_PASSWORD" | sed 's/./*/g')"
+printf "  RTSP path  : %s (detect) / %s (record)\n" "$RTSP_PATH_SUB" "$RTSP_PATH_MAIN"
+if [ "$VARIANT" = "lite" ]; then
+    printf "  MQTT user  : %s\n" "$MQTT_USER"
+    printf "  MQTT pass  : %s\n" "$(echo "$MQTT_PASSWORD" | sed 's/./*/g')"
+fi
 if [ "$VARIANT" = "full" ]; then
     printf "  WhatsApp   : +%s\n" "$WHATSAPP_PHONE"
     printf "  API key    : %s\n" "$(echo "$WHATSAPP_APIKEY" | sed 's/./*/g')"
@@ -180,7 +268,16 @@ cat >> "$ENV_FILE" <<EOF
 FRIGATE_CAMERA_IP=${CAMERA_IP}
 FRIGATE_RTSP_USER=${RTSP_USER}
 FRIGATE_RTSP_PASSWORD=${RTSP_PASSWORD}
+FRIGATE_RTSP_PATH_MAIN=${RTSP_PATH_MAIN}
+FRIGATE_RTSP_PATH_SUB=${RTSP_PATH_SUB}
 EOF
+
+if [ "$VARIANT" = "lite" ]; then
+    cat >> "$ENV_FILE" <<EOF
+FRIGATE_MQTT_USER=${MQTT_USER}
+FRIGATE_MQTT_PASSWORD=${MQTT_PASSWORD}
+EOF
+fi
 
 if [ "$VARIANT" = "full" ]; then
     cat >> "$ENV_FILE" <<EOF
@@ -191,12 +288,12 @@ fi
 
 chmod 600 "$ENV_FILE"
 
-# ── Pull Docker image ──────────────────────────────────────────────────────────
-printf "${BOLD}Pulling Docker image (first run — may take several minutes)...${RESET}\n\n"
-# Check the pull result explicitly — do NOT swallow failures (no network at first boot,
-# registry outage, rate-limit). A failed pull must abort so the wizard retries next boot.
-if ! docker pull "$IMAGE_NAME"; then
-    printf "\n${RED}ERROR: Docker image pull failed — check network/registry, then reboot to retry.${RESET}\n"
+# ── Prepare Docker image ─────────────────────────────────────────────────────
+printf "${BOLD}Preparing Docker image...${RESET}\n\n"
+# The image is baked into the appliance — this is offline + instant. Falls back to a pull
+# only if it is somehow missing; aborts (retry next boot) only if that fallback also fails.
+if ! ensure_image; then
+    printf "\n${RED}ERROR: image missing and pull failed — check network/registry, then reboot to retry.${RESET}\n"
     exit 1
 fi
 
