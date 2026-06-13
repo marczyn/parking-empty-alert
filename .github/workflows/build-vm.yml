@@ -88,10 +88,18 @@ jobs:
           # into the command line (command-injection sink). Already allowlist-validated above.
           VER: ${{ steps.version.outputs.version }}
         run: |
-          packer build \
-            -var "variant=full" \
-            -var "version=$VER" \
-            vm/parking.pkr.hcl
+          # Retry: packer fetches the Debian checksum/image from cloud.debian.org each run
+          # and that mirror intermittently TLS-handshake-times-out. Retry the whole build.
+          for attempt in 1 2 3 4 5; do
+            echo "::group::packer build full (attempt $attempt)"
+            if packer build -var "variant=full" -var "version=$VER" vm/parking.pkr.hcl; then
+              echo "::endgroup::"; exit 0
+            fi
+            echo "::endgroup::"
+            echo "attempt $attempt failed (often the flaky Debian mirror) — retrying..."
+            sleep 15
+          done
+          echo "::error::packer build (full) failed after 5 attempts"; exit 1
 
       - name: Upload full OVA as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -149,10 +157,18 @@ jobs:
           # into the command line (command-injection sink). Already allowlist-validated above.
           VER: ${{ steps.version.outputs.version }}
         run: |
-          packer build \
-            -var "variant=lite" \
-            -var "version=$VER" \
-            vm/parking.pkr.hcl
+          # Retry: packer fetches the Debian checksum/image from cloud.debian.org each run
+          # and that mirror intermittently TLS-handshake-times-out. Retry the whole build.
+          for attempt in 1 2 3 4 5; do
+            echo "::group::packer build lite (attempt $attempt)"
+            if packer build -var "variant=lite" -var "version=$VER" vm/parking.pkr.hcl; then
+              echo "::endgroup::"; exit 0
+            fi
+            echo "::endgroup::"
+            echo "attempt $attempt failed (often the flaky Debian mirror) — retrying..."
+            sleep 15
+          done
+          echo "::error::packer build (lite) failed after 5 attempts"; exit 1
 
       - name: Upload lite OVA as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

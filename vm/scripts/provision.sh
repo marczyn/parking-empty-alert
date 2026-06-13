@@ -117,9 +117,11 @@ sudo systemctl enable regenerate-ssh-host-keys.service
 #     keyfile — adding a second manager (ifupdown) only made NM mark eth0 "unmanaged" while
 #     networking.service failed to raise the link, leaving the appliance with no DHCP,
 # (3) stop cloud-init from re-pinning the network,
-# (4) bake VMware storage drivers into the initramfs — the Debian *cloud* kernel ships a
-#     virtio-only initramfs, so on ESXi/Workstation the root disk is invisible and the
-#     appliance drops to an initramfs shell ("PARTUUID … does not exist").
+# (4) replace the Debian *cloud* kernel with the GENERIC kernel — the cloud kernel only
+#     carries virtio + a couple of VMware paravirtual drivers (vmxnet3/vmw_pvscsi), so on
+#     hypervisors that present other disk/NIC controllers (ESXi LSI Logic, VirtualBox/Hyper-V
+#     SATA, e1000e, …) the root disk / NIC is invisible and the appliance drops to an
+#     initramfs shell ("PARTUUID … does not exist") or comes up with no network.
 # NB: nothing here restarts networking — changes take effect on the shipped image's first
 # boot only, so the live Packer SSH session survives.
 echo "==> Hardening for cross-hypervisor portability (eth0, NetworkManager, storage)..."
@@ -159,10 +161,20 @@ echo 'network: {config: disabled}' | sudo tee /etc/cloud/cloud.cfg.d/99-disable-
 sudo systemctl enable NetworkManager 2>/dev/null || true
 sudo systemctl disable networking systemd-networkd.service systemd-networkd.socket 2>/dev/null || true
 
-# (4) Storage drivers for non-virtio hypervisors (VMware LSI Logic / LSI SAS / PVSCSI / SATA).
-echo "==> Baking VMware storage drivers into the initramfs..."
-printf 'mptspi\nmptsas\nvmw_pvscsi\nahci\nsd_mod\n' | sudo tee -a /etc/initramfs-tools/modules >/dev/null
-sudo update-initramfs -u
+# (4) Universal kernel: install the GENERIC Debian kernel (full driver set) and force
+# MODULES=most so the initramfs carries every storage/NIC driver, then drop the minimal
+# cloud kernel so GRUB boots the generic one. The image then boots unmodified on any
+# hypervisor (ESXi lsilogic/pvscsi/SATA, VirtualBox, Hyper-V, KVM/virtio, Synology VMM).
+echo "==> Installing the generic kernel for universal hardware support..."
+sudo apt-get update -qq
+sudo apt-get install -y --no-install-recommends linux-image-amd64
+echo 'MODULES=most' | sudo tee /etc/initramfs-tools/conf.d/00-most >/dev/null
+sudo update-initramfs -u -k all
+# Remove the cloud kernel (meta + versioned) so only the generic kernel remains / is default.
+# '|| true': apt warns when removing the currently-running (cloud) kernel but still succeeds;
+# the files persist until the build VM shuts down, so the live build is unaffected.
+sudo apt-get purge -y 'linux-image-cloud-amd64' 'linux-image-*-cloud-amd64' 2>/dev/null || true
+sudo update-grub
 
 # Remove cloud-init seed data so it doesn't run again
 sudo cloud-init clean --logs
