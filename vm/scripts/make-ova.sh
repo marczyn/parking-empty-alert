@@ -123,13 +123,15 @@ Source: https://github.com/marczyn/parking-empty-alert</Annotation>
         <rasd:VirtualQuantity>${MEM_MB}</rasd:VirtualQuantity>
       </Item>
 
-      <!-- SCSI controller -->
+      <!-- SCSI controller: VMware Paravirtual (pvscsi). The Debian kernel's vmw_pvscsi
+           driver is in the initramfs, so ESXi/vSphere/Workstation boot from this disk;
+           lsilogic (LSI Parallel) needs mptspi which the cloud kernel omitted. -->
       <Item>
         <rasd:Address>0</rasd:Address>
         <rasd:Description>SCSI Controller</rasd:Description>
         <rasd:ElementName>scsiController0</rasd:ElementName>
         <rasd:InstanceID>3</rasd:InstanceID>
-        <rasd:ResourceSubType>lsilogic</rasd:ResourceSubType>
+        <rasd:ResourceSubType>VirtualSCSI</rasd:ResourceSubType>
         <rasd:ResourceType>6</rasd:ResourceType>
       </Item>
 

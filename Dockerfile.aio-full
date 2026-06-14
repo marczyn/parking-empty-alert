@@ -111,9 +111,9 @@ cameras:
     enabled: true
     ffmpeg:
       inputs:
-        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAMERA_IP}:554/h264Preview_01_sub
+        - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAMERA_IP}:554{FRIGATE_RTSP_PATH_SUB}"
           roles: [detect]
-        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAMERA_IP}:554/h264Preview_01_main
+        - path: "rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAMERA_IP}:554{FRIGATE_RTSP_PATH_MAIN}"
           roles: [record]
     detect:
       width: 640
@@ -213,6 +213,13 @@ RUN chmod +x /etc/cont-init.d/10-ha-config.sh
 # script fails fast if they are not provided at runtime.
 ENV FRIGATE_CAMERA_IP=192.168.1.100
 ENV FRIGATE_RTSP_USER=frigate
+# RTSP stream path differs per camera brand, so it is overridable — ANY camera works, not
+# just Reolink. Defaults are Reolink (h264Preview_01_*); the first-boot wizard sets these
+# from the chosen brand (Hikvision /Streaming/Channels/10{1,2}, Dahua /cam/realmonitor?...,
+# Tapo /stream{1,2}, or a custom path). Port stays 554 (standard); a non-554 camera needs
+# a config edit. Frigate substitutes these {FRIGATE_*} refs from the container env.
+ENV FRIGATE_RTSP_PATH_MAIN=/h264Preview_01_main
+ENV FRIGATE_RTSP_PATH_SUB=/h264Preview_01_sub
 
 # 1883 (MQTT) is intentionally NOT exposed — the broker is localhost-only and
 # used only by the in-container Frigate + Home Assistant.

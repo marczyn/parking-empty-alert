@@ -21,7 +21,16 @@ variable "variant" {
 
 variable "version" {
   type    = string
-  default = "1.1.0"
+  default = "1.2.0"
+}
+
+# The published app image tag baked INTO the appliance (ghcr `:v<app_version>`).
+# Decoupled from the appliance `version` so the OVA can iterate (e.g. packaging /
+# network fixes) without requiring a brand-new app image release — it bakes a
+# known-good, already-published image instead of a tag that may not exist yet.
+variable "app_version" {
+  type    = string
+  default = "1.2.0"
 }
 
 variable "disk_size" {
@@ -39,15 +48,21 @@ variable "cpus" {
   default = "2"
 }
 
-# Debian 12 (bookworm) generic cloud image — updated periodically upstream
+# Debian 12 (bookworm) generic cloud image — updated periodically upstream.
+# Pinned to the Umeå (acc.umu.se) Debian cdimage mirror rather than the
+# cloud.debian.org GeoDNS redirector: the latter rotates clients onto arbitrary
+# mirrors and was persistently handing our build runner a dead mirror
+# (mirror.accum.se), causing TLS-handshake timeouts that no retry could clear.
+# acc.umu.se is an official Debian push-primary cdimage mirror (fast + stable).
+# Override with -var debian_url=/-var debian_checksum= to use a different mirror.
 variable "debian_url" {
   type    = string
-  default = "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2"
+  default = "https://gemmei.ftp.acc.umu.se/images/cloud/bookworm/latest/debian-12-genericcloud-amd64.qcow2"
 }
 
 variable "debian_checksum" {
   type    = string
-  default = "file:https://cloud.debian.org/images/cloud/bookworm/latest/SHA512SUMS"
+  default = "file:https://gemmei.ftp.acc.umu.se/images/cloud/bookworm/latest/SHA512SUMS"
 }
 
 # ── Locals ─────────────────────────────────────────────────────────────────────
@@ -58,7 +73,7 @@ locals {
   # shipped appliance runs exactly the image it was built/validated against. The
   # docker-publish workflow tags images ":v<release>" (e.g. v1.0.2) and build-vm passes
   # the v-stripped version, so prepend 'v' here to match the published tag.
-  image_name = var.variant == "full" ? "ghcr.io/marczyn/parking-empty-alert:v${var.version}" : "ghcr.io/marczyn/parking-empty-alert-lite:v${var.version}"
+  image_name = var.variant == "full" ? "ghcr.io/marczyn/parking-empty-alert:v${var.app_version}" : "ghcr.io/marczyn/parking-empty-alert-lite:v${var.app_version}"
 }
 
 # ── Source ─────────────────────────────────────────────────────────────────────
