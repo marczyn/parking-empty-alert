@@ -88,8 +88,8 @@ jobs:
           # into the command line (command-injection sink). Already allowlist-validated above.
           VER: ${{ steps.version.outputs.version }}
         run: |
-          # Retry: packer fetches the Debian checksum/image from cloud.debian.org each run
-          # and that mirror intermittently TLS-handshake-times-out. Retry the whole build.
+          # Retry: packer fetches the Debian checksum/image from the pinned acc.umu.se
+          # mirror (see vm/parking.pkr.hcl); retry guards against transient TLS/network blips.
           for attempt in 1 2 3 4 5; do
             echo "::group::packer build full (attempt $attempt)"
             if packer build -var "variant=full" -var "version=$VER" vm/parking.pkr.hcl; then
@@ -166,8 +166,8 @@ jobs:
           # into the command line (command-injection sink). Already allowlist-validated above.
           VER: ${{ steps.version.outputs.version }}
         run: |
-          # Retry: packer fetches the Debian checksum/image from cloud.debian.org each run
-          # and that mirror intermittently TLS-handshake-times-out. Retry the whole build.
+          # Retry: packer fetches the Debian checksum/image from the pinned acc.umu.se
+          # mirror (see vm/parking.pkr.hcl); retry guards against transient TLS/network blips.
           for attempt in 1 2 3 4 5; do
             echo "::group::packer build lite (attempt $attempt)"
             if packer build -var "variant=lite" -var "version=$VER" vm/parking.pkr.hcl; then
