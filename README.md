@@ -8,6 +8,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
 [![CI](https://github.com/marczyn/parking-empty-alert/actions/workflows/ci.yml/badge.svg)](https://github.com/marczyn/parking-empty-alert/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/marczyn/parking-empty-alert?label=release)](https://github.com/marczyn/parking-empty-alert/releases/latest)
 
 **What it does:** sends a notification **when a parking spot becomes EMPTY**
 (car drove away).
