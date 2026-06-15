@@ -15,7 +15,7 @@ ExecStart=/usr/bin/docker run \
     --rm \
     --env-file /etc/parking.env \
     -p 8090:8090 \
-    -p 8123:8123 \
+    __VARIANT_PORTS__ \
     -p 8554:8554 \
     -p 8555:8555 \
     --shm-size=256m \

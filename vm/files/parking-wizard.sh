@@ -307,9 +307,13 @@ HOST_IP=$(ip route get 1 2>/dev/null | awk '{print $7; exit}' || echo "<this-mac
 printf "\n${GREEN}${BOLD}Setup complete!${RESET}\n\n"
 printf "  ${BOLD}Frigate UI     :${RESET} ${CYAN}http://%s:8090${RESET}\n" "$HOST_IP"
 if [ "$VARIANT" = "full" ]; then
-    printf "  ${BOLD}Home Assistant :${RESET} ${CYAN}http://%s:8123${RESET}\n" "$HOST_IP"
+    # full bundles Home Assistant; its MQTT broker is in-container (localhost, anonymous)
+    # and deliberately NOT published, so don't advertise a :1883 endpoint here.
+    printf "  ${BOLD}Home Assistant :${RESET} ${CYAN}http://%s:8123${RESET}\n\n" "$HOST_IP"
+else
+    # lite has no bundled HA; it publishes its authenticated broker on :1883 for external HA
+    printf "  ${BOLD}MQTT broker    :${RESET} ${CYAN}%s:1883${RESET} (user %s)\n\n" "$HOST_IP" "$MQTT_USER"
 fi
-printf "  ${BOLD}MQTT broker    :${RESET} %s:1883\n\n" "$HOST_IP"
 printf "  Configuration : %s\n" "$ENV_FILE"
 printf "  Logs          : journalctl -u parking\n\n"
 printf "  ${YELLOW}Draw your parking zone in Frigate UI → camera → Edit Zones.${RESET}\n\n"
