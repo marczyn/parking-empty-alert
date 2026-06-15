@@ -31,6 +31,8 @@ plus any generic ONVIF camera ([templates](examples/cameras/README.md)).
 
 **Two images, both fully self-contained. Pull, run, open browser.**
 
+> 💿 **Prefer a VM over Docker?** Import the ready-made [virtual appliance (OVA / qcow2)](docs/APPLIANCE.md) — boots on any hypervisor (VMware / VirtualBox / Synology VMM / Proxmox / Hyper-V) and a first-boot wizard configures everything.
+
 ### 🅰️ Full image — includes Home Assistant
 
 ```bash
