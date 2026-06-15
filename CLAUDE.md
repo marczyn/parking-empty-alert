@@ -15,7 +15,7 @@ Delivered as a compose stack, AIO Docker images (`Dockerfile.aio-{full,lite}`), 
 - AIO env vars are `FRIGATE_*` (camera/rtsp/mqtt) + `WHATSAPP_*`; compose `.env` uses non-prefixed names.
 - full broker: localhost-only, anonymous, 1883 not published. lite broker: authenticated, published 1883 (passwd from `FRIGATE_MQTT_USER/PASSWORD`, chowned to `mosquitto`).
 - Host-net HA can't resolve `mosquitto` → broker host via `MQTT_BROKER` env (default `127.0.0.1`).
-- OVA `attach-to-release` only runs on the `release` event, not `workflow_dispatch`.
+- OVA/qcow2 are NOT GitHub release assets (each 4.6–11 GB, over the 2 GiB cap). `build-vm.yml` is `workflow_dispatch`-only (no `release` trigger / no attach job); distribute via the GHCR images + on-demand build (see `docs/APPLIANCE.md`).
 - `setup.sh` never `source`s `.env` (use `load_env()`); keep `.env` `0600`.
 
 ## Supply chain / security
