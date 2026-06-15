@@ -63,6 +63,19 @@ sudo install -m 0644 /tmp/parking.service        /etc/systemd/system/parking.ser
 # parking.service: substitute variant-specific image name
 sudo sed -i "s|__IMAGE_NAME__|${IMAGE_NAME}|g" /etc/systemd/system/parking.service
 
+# parking.service: publish the variant-specific port. 8090/8554/8555 (Frigate UI/RTSP/
+# WebRTC) are common to both. The FULL image bundles Home Assistant, so it publishes 8123.
+# The LITE image has NO bundled HA; it instead exposes its AUTHENTICATED MQTT broker on
+# 1883 so your EXTERNAL Home Assistant can connect (the whole point of lite). Without this
+# the lite broker runs but is unreachable from the LAN — the wizard tells the user to use
+# <host>:1883 yet nothing is published there.
+if [ "${VARIANT}" = "lite" ]; then
+    VARIANT_PORTS="-p 1883:1883"
+else
+    VARIANT_PORTS="-p 8123:8123"
+fi
+sudo sed -i "s|__VARIANT_PORTS__|${VARIANT_PORTS}|g" /etc/systemd/system/parking.service
+
 # parking-wizard runs on first boot; parking.service is enabled by the wizard
 sudo systemctl daemon-reload
 sudo systemctl enable parking-wizard.service
