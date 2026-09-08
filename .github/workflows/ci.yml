@@ -14,12 +14,12 @@ permissions:
 jobs:
   validate:
     name: Validate configs
-    # SECURITY: the self-hosted 'parking' runner is persistent (not ephemeral) and also
-    # builds OVAs / pushes images. NEVER run untrusted fork-PR code on it. This guard
-    # runs CI only for pushes and for same-repo PRs (trusted); PRs opened from a fork
-    # are skipped here and must be validated by a maintainer out-of-band.
+    # SECURITY: same-repo / push only. The guard was written for the persistent
+    # self-hosted runner, which also built OVAs and pushed images; on a GitHub-hosted
+    # ephemeral runner the blast radius is smaller but not zero - the job still holds a
+    # token for this repository. Fork PRs are skipped here and validated out-of-band.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -28,7 +28,13 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Verify yamllint available (pre-installed on self-hosted runner)
+      # The self-hosted runner had yamllint installed by hand, so the workflow only
+      # VERIFIED it. A GitHub-hosted image does not ship it - install it, and pin the
+      # version so a new release cannot turn a green build red on its own.
+      - name: Install yamllint
+        run: pip install --disable-pip-version-check yamllint==1.37.1
+
+      - name: yamllint version
         run: yamllint --version
 
       - name: Lint YAML formatting (warnings only)
@@ -115,12 +121,12 @@ jobs:
   shellcheck:
     name: ShellCheck scripts
     needs: validate          # skip if YAML invalid
-    # SECURITY: same-repo / push only — never run fork-PR scripts on the self-hosted runner.
+    # SECURITY: same-repo / push only — never run fork-PR scripts with this repository's token.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: Verify shellcheck available (pre-installed on self-hosted runner)
+      - name: shellcheck version (pre-installed on the GitHub-hosted image)
         run: shellcheck --version
       - name: Run shellcheck
         run: |
@@ -141,9 +147,12 @@ jobs:
   frigate-config:
     name: Frigate config schema validation
     needs: validate          # skip if YAML invalid
-    # SECURITY: same-repo / push only — never docker-run fork-PR configs on the self-hosted runner.
+    # SECURITY: same-repo / push only. This job feeds a repository file into `docker run`;
+    # a fork PR could change that file. The guard mattered more on the self-hosted runner
+    # (it shared a host with the lab) and still matters on a GitHub runner, because the
+    # job holds a token and pulls an image on behalf of this repository.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Pull Frigate image (single shared pull)
@@ -183,7 +192,7 @@ jobs:
     # files that GitHub itself rejects — e.g. a literal `${{ }}` inside a run: comment,
     # which is a fatal parse error that silently disables the workflow. actionlint catches it.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: actionlint
