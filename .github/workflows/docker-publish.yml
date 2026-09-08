@@ -24,7 +24,7 @@ jobs:
   # ── Full image ────────────────────────────────────────────────
   build-full-amd64:
     name: Full — amd64
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
@@ -57,7 +57,7 @@ jobs:
 
   build-full-arm64:
     name: Full — arm64
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-24.04-arm
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
@@ -88,7 +88,7 @@ jobs:
   merge-full:
     name: Full — merge manifest
     needs: [build-full-amd64, build-full-arm64]
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest
     steps:
       - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
@@ -108,7 +108,7 @@ jobs:
   # ── Lite image ────────────────────────────────────────────────
   build-lite-amd64:
     name: Lite — amd64
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
@@ -137,7 +137,7 @@ jobs:
 
   build-lite-arm64:
     name: Lite — arm64
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-24.04-arm
     outputs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
@@ -168,7 +168,7 @@ jobs:
   merge-lite:
     name: Lite — merge manifest
     needs: [build-lite-amd64, build-lite-arm64]
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest
     steps:
       - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
