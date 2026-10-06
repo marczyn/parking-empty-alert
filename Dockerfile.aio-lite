@@ -14,7 +14,7 @@
 # Then in your existing HA: MQTT broker <host>:1883 (user/pass above), Frigate URL http://<host>:8090
 ###############################################################################
 
-FROM ghcr.io/blakeblackshear/frigate:stable@sha256:d4351369984d4a9e2a49ac59736f6490856a7ea11f7790040746d21496967010
+FROM ghcr.io/blakeblackshear/frigate:stable@sha256:9678a83a76e4730ac7d9ea7428370e32ae656d6b312aaad30d6c69f3fef14d35
 
 # Install Mosquitto (Frigate base already has s6-overlay)
 RUN apt-get update && \
