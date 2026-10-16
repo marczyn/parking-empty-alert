@@ -23,7 +23,7 @@ jobs:
 
   check-runner:
     name: Verify KVM available
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest   # GitHub-hosted since 2026-10-16 (owner); the `parking` self-hosted runner no longer exists
     outputs:
       kvm: ${{ steps.kvm.outputs.available }}
     steps:
@@ -41,9 +41,27 @@ jobs:
   build-full:
     name: Build full OVA
     needs: check-runner
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest   # GitHub-hosted since 2026-10-16 (owner); the `parking` self-hosted runner no longer exists
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # GitHub-hosted runner (2026-10-16): ~14 GB free on / is less than a full build needs (OVA up to
+      # ~11 GB plus the qcow2 it is made from), so the preinstalled SDKs we do not use are dropped first.
+      - name: Free disk space (hosted runner)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          docker-images: true
+          swap-storage: false
+      # Hosted Linux runners expose /dev/kvm, but only root may open it until this udev rule is added;
+      # without it Packer falls back to TCG (software emulation, many times slower).
+      - name: Enable KVM for the runner user
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+          df -h / | tail -1
 
       - name: Resolve version
         id: version
@@ -121,9 +139,27 @@ jobs:
   build-lite:
     name: Build lite OVA
     needs: check-runner
-    runs-on: [self-hosted, linux, x64, parking]
+    runs-on: ubuntu-latest   # GitHub-hosted since 2026-10-16 (owner); the `parking` self-hosted runner no longer exists
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # GitHub-hosted runner (2026-10-16): ~14 GB free on / is less than a full build needs (OVA up to
+      # ~11 GB plus the qcow2 it is made from), so the preinstalled SDKs we do not use are dropped first.
+      - name: Free disk space (hosted runner)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          docker-images: true
+          swap-storage: false
+      # Hosted Linux runners expose /dev/kvm, but only root may open it until this udev rule is added;
+      # without it Packer falls back to TCG (software emulation, many times slower).
+      - name: Enable KVM for the runner user
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+          df -h / | tail -1
 
       - name: Resolve version
         id: version
