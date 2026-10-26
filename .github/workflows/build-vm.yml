@@ -51,7 +51,7 @@ jobs:
       # GitHub-hosted runner (2026-10-16): ~14 GB free on / is less than a full build needs (OVA up to
       # ~11 GB plus the qcow2 it is made from), so the preinstalled SDKs we do not use are dropped first.
       - name: Free disk space (hosted runner)
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           tool-cache: true
           docker-images: true
@@ -133,7 +133,7 @@ jobs:
       # GitHub-hosted runner (2026-10-16): ~14 GB free on / is less than a full build needs (OVA up to
       # ~11 GB plus the qcow2 it is made from), so the preinstalled SDKs we do not use are dropped first.
       - name: Free disk space (hosted runner)
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           tool-cache: true
           docker-images: true
